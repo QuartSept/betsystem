@@ -35,6 +35,9 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 # Faz 3: Dixon-Coles, zaman ağırlığı, xG katkı raporu (reports/faz3_model.md)
 .venv\Scripts\betsistem faz3-report
 
+# Karar #36: yeni çıkan takım ayarı (reports/faz3_yeni_cikan.md)
+.venv\Scripts\betsistem promoted-report
+
 # İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
 .venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
 ```

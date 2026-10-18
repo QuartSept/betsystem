@@ -1,6 +1,6 @@
 # Faz 3: gelişmiş model
 
-Oluşturulma: 2026-10-18T15:35:15+00:00 (UTC).
+Oluşturulma: 2026-10-18T15:38:38+00:00 (UTC).
 
 ## Protokol
 

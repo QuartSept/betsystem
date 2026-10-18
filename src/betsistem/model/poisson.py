@@ -31,36 +31,30 @@ class PoissonModel:
     attack: np.ndarray
     defence: np.ndarray
     rho: float = 0.0
+    # Karar #36: yeni çıkan takımın o sezon hücumuna/savunmasına eklenen sabit kayma.
+    promoted_attack: float = 0.0
+    promoted_defence: float = 0.0
 
-    def _index(self, team: str) -> int | None:
-        try:
-            return self.teams.index(team)
-        except ValueError:
-            return None  # eğitimde görülmemiş takım: ortalama güç
-
-    def expected_goals(self, home: str, away: str) -> tuple[float, float]:
-        h, a = self._index(home), self._index(away)
-        att_h = self.attack[h] if h is not None else 0.0
-        def_h = self.defence[h] if h is not None else 0.0
-        att_a = self.attack[a] if a is not None else 0.0
-        def_a = self.defence[a] if a is not None else 0.0
-        lam_h = np.exp(self.intercept + self.home_advantage + att_h - def_a)
-        lam_a = np.exp(self.intercept + att_a - def_h)
-        return float(lam_h), float(lam_a)
-
-    def expected_goals_many(self, home, away) -> tuple[np.ndarray, np.ndarray]:
-        """Vektörel λ'lar; görülmemiş takımların gücü 0 (ortalama)."""
+    def expected_goals_many(self, home, away, home_promoted=None, away_promoted=None) -> tuple[np.ndarray, np.ndarray]:
+        """Vektörel λ'lar; eğitimde görülmemiş takımın kendi gücü 0 (ortalama)."""
         idx = {t: i for i, t in enumerate(self.teams)}
         att = np.append(self.attack, 0.0)
         dfn = np.append(self.defence, 0.0)
         hi = np.array([idx.get(t, -1) for t in home])
         ai = np.array([idx.get(t, -1) for t in away])
-        lam_h = np.exp(self.intercept + self.home_advantage + att[hi] - dfn[ai])
-        lam_a = np.exp(self.intercept + att[ai] - dfn[hi])
+        fh = np.zeros(len(hi)) if home_promoted is None else np.asarray(home_promoted, dtype=float)
+        fa = np.zeros(len(ai)) if away_promoted is None else np.asarray(away_promoted, dtype=float)
+        pa, pd_ = self.promoted_attack, self.promoted_defence
+        lam_h = np.exp(self.intercept + self.home_advantage + att[hi] + pa * fh - dfn[ai] - pd_ * fa)
+        lam_a = np.exp(self.intercept + att[ai] + pa * fa - dfn[hi] - pd_ * fh)
         return lam_h, lam_a
 
-    def outcome_probabilities(self, home: str, away: str) -> tuple[float, float, float]:
-        return outcome_probabilities(*self.expected_goals(home, away), rho=self.rho)
+    def expected_goals(self, home: str, away: str, home_promoted=False, away_promoted=False) -> tuple[float, float]:
+        lam_h, lam_a = self.expected_goals_many([home], [away], [home_promoted], [away_promoted])
+        return float(lam_h[0]), float(lam_a[0])
+
+    def outcome_probabilities(self, home: str, away: str, home_promoted=False, away_promoted=False):
+        return outcome_probabilities(*self.expected_goals(home, away, home_promoted, away_promoted), rho=self.rho)
 
 
 RHO_BOUNDS = (-0.3, 0.3)
@@ -115,7 +109,10 @@ def fit_poisson(
     *,
     l2: float = 1.0,
     weights=None,
+    home_promoted=None,
+    away_promoted=None,
 ) -> PoissonModel:
+    """home_promoted/away_promoted verilirse yeni çıkan takım kayması (cezasız) da tahmin edilir."""
     teams = sorted(set(home) | set(away))
     idx = {t: i for i, t in enumerate(teams)}
     hi = np.array([idx[t] for t in home])
@@ -123,13 +120,16 @@ def fit_poisson(
     hg = np.asarray(home_goals, dtype=float)
     ag = np.asarray(away_goals, dtype=float)
     w = np.ones_like(hg) if weights is None else np.asarray(weights, dtype=float)
+    fh = np.zeros_like(hg) if home_promoted is None else np.asarray(home_promoted, dtype=float)
+    fa = np.zeros_like(hg) if away_promoted is None else np.asarray(away_promoted, dtype=float)
     n = len(teams)
+    k = 4  # μ, ev avantajı, yeni çıkan hücum kayması, yeni çıkan savunma kayması
 
     def objective(theta):
-        mu, home_adv = theta[0], theta[1]
-        att, dfn = theta[2 : 2 + n], theta[2 + n :]
-        log_lh = mu + home_adv + att[hi] - dfn[ai]
-        log_la = mu + att[ai] - dfn[hi]
+        mu, home_adv, pa, pd_ = theta[:k]
+        att, dfn = theta[k : k + n], theta[k + n :]
+        log_lh = mu + home_adv + att[hi] + pa * fh - dfn[ai] - pd_ * fa
+        log_la = mu + att[ai] + pa * fa - dfn[hi] - pd_ * fh
         lh, la = np.exp(log_lh), np.exp(log_la)
         nll = np.sum(w * (lh - hg * log_lh)) + np.sum(w * (la - ag * log_la))
         nll += l2 * (att @ att + dfn @ dfn)
@@ -138,13 +138,17 @@ def fit_poisson(
         grad = np.empty_like(theta)
         grad[0] = rh.sum() + ra.sum()
         grad[1] = rh.sum()
-        grad[2 : 2 + n] = np.bincount(hi, rh, n) + np.bincount(ai, ra, n) + 2 * l2 * att
-        grad[2 + n :] = -np.bincount(ai, rh, n) - np.bincount(hi, ra, n) + 2 * l2 * dfn
+        grad[2] = rh @ fh + ra @ fa
+        grad[3] = -(rh @ fa) - (ra @ fh)
+        grad[k : k + n] = np.bincount(hi, rh, n) + np.bincount(ai, ra, n) + 2 * l2 * att
+        grad[k + n :] = -np.bincount(ai, rh, n) - np.bincount(hi, ra, n) + 2 * l2 * dfn
         return nll, grad
 
-    theta0 = np.zeros(2 + 2 * n)
+    theta0 = np.zeros(k + 2 * n)
     theta0[0] = np.log(max((hg.mean() + ag.mean()) / 2, 1e-3))
-    res = minimize(objective, theta0, jac=True, method="L-BFGS-B", options={"ftol": 1e-12, "gtol": 1e-6, "maxiter": 5000})
+    res = minimize(
+        objective, theta0, jac=True, method="L-BFGS-B", options={"ftol": 1e-12, "gtol": 1e-6, "maxiter": 5000}
+    )
     if not res.success:
         raise RuntimeError(f"Poisson modeli yakınsamadı: {res.message}")
     th = res.x
@@ -152,6 +156,8 @@ def fit_poisson(
         teams=teams,
         intercept=float(th[0]),
         home_advantage=float(th[1]),
-        attack=th[2 : 2 + n],
-        defence=th[2 + n :],
+        attack=th[k : k + n],
+        defence=th[k + n :],
+        promoted_attack=float(th[2]),
+        promoted_defence=float(th[3]),
     )

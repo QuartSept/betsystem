@@ -20,9 +20,13 @@ class ModelConfig:
     xi: float = 0.0  # zaman ağırlığı: w = exp(−ξ · gün farkı); 0 = ağırlıksız
     xg_weight: float = 0.0  # hedef = (1 − a)·gol + a·xG; 0 = yalnızca gol
     dixon_coles: bool = False
+    promoted_effect: bool = False  # karar #36
 
     def key(self) -> str:
-        return json.dumps(asdict(self), sort_keys=True)
+        d = asdict(self)
+        if not d["promoted_effect"]:
+            d.pop("promoted_effect")  # eski tahminlerin anahtarı değişmesin
+        return json.dumps(d, sort_keys=True)
 
 
 def load_matches(conn: sqlite3.Connection, league: str = "E0") -> pd.DataFrame:
@@ -41,6 +45,30 @@ def load_matches(conn: sqlite3.Connection, league: str = "E0") -> pd.DataFrame:
     return df
 
 
+def _previous_season(code: str) -> str:
+    start = int(code[:2])
+    return f"{(start - 1) % 100:02d}{start:02d}"
+
+
+def promoted_flags(matches: pd.DataFrame) -> pd.DataFrame:
+    """Maç başına ev/deplasman takımının o sezon yeni çıkan olup olmadığı (karar #36).
+
+    Bir önceki sezon veride yoksa (ilk sezon) kimse yeni çıkan sayılmaz. Hangi takımların ligde
+    olduğu sezon başında bilinir; bu bilgi sızıntı değildir.
+    """
+    teams = {
+        season: set(g.home) | set(g.away) for season, g in matches.groupby("season")
+    }
+    promoted = {
+        season: (members - teams[_previous_season(season)]) if _previous_season(season) in teams else set()
+        for season, members in teams.items()
+    }
+    return pd.DataFrame({
+        "home_promoted": [h in promoted[s] for h, s in zip(matches.home, matches.season)],
+        "away_promoted": [a in promoted[s] for a, s in zip(matches.away, matches.season)],
+    }, index=matches.index)
+
+
 def _targets(train: pd.DataFrame, xg_weight: float) -> tuple[np.ndarray, np.ndarray]:
     """Eğitim hedefi. xG'si olmayan maçta gol kullanılır."""
     hg, ag = train.fthg.to_numpy(float), train.ftag.to_numpy(float)
@@ -55,6 +83,7 @@ def walk_forward(
     matches: pd.DataFrame, seasons=MODEL_SELECTION_SEASONS, config: ModelConfig = ModelConfig()
 ) -> pd.DataFrame:
     assert_unlocked(seasons)
+    matches = matches.join(promoted_flags(matches))
     played = matches.dropna(subset=["fthg", "ftag"])
     targets = matches[matches.season.isin(seasons)].copy()
     targets["decision_date"] = targets["match_date"].map(decision_date)
@@ -68,13 +97,19 @@ def walk_forward(
         age = np.array([(dd - d).days for d in train.match_date], dtype=float)
         weights = np.exp(-config.xi * age)
         y_home, y_away = _targets(train, config.xg_weight)
-        model = fit_poisson(train.home.tolist(), train.away.tolist(), y_home, y_away, l2=config.l2, weights=weights)
+        flags = {}
+        if config.promoted_effect:
+            flags = {"home_promoted": train.home_promoted.to_numpy(), "away_promoted": train.away_promoted.to_numpy()}
+        model = fit_poisson(
+            train.home.tolist(), train.away.tolist(), y_home, y_away, l2=config.l2, weights=weights, **flags
+        )
         if config.dixon_coles:
             lam_h, lam_a = model.expected_goals_many(train.home, train.away)
             model.rho = fit_rho(lam_h, lam_a, train.fthg.astype(int), train.ftag.astype(int), weights)
         for m in group.itertuples(index=False):
-            lam_h, lam_a = model.expected_goals(m.home, m.away)
-            p_h, p_d, p_a = model.outcome_probabilities(m.home, m.away)
+            fh, fa = (m.home_promoted, m.away_promoted) if config.promoted_effect else (False, False)
+            lam_h, lam_a = model.expected_goals(m.home, m.away, fh, fa)
+            p_h, p_d, p_a = model.outcome_probabilities(m.home, m.away, fh, fa)
             rows.append(
                 {
                     "match_id": m.match_id,
@@ -86,6 +121,8 @@ def walk_forward(
                     "lambda_home": lam_h,
                     "lambda_away": lam_a,
                     "rho": model.rho,
+                    "promoted_attack": model.promoted_attack,
+                    "promoted_defence": model.promoted_defence,
                 }
             )
     return pd.DataFrame(rows)

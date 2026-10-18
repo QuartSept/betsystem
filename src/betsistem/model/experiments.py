@@ -15,7 +15,7 @@ import pandas as pd
 from betsistem.config import season_label
 from betsistem.model import metrics
 from betsistem.model.evaluation import COLS, _market
-from betsistem.model.predict import ModelConfig, load_matches, save_predictions, walk_forward
+from betsistem.model.predict import ModelConfig, load_matches, promoted_flags, save_predictions, walk_forward
 from betsistem.model.timeline import assert_unlocked
 from betsistem.report import markdown_table as _md
 
@@ -190,3 +190,65 @@ def render_report(conn: sqlite3.Connection) -> str:
         _md(calib),
     ]
     return "\n\n".join(parts) + "\n"
+
+
+# Karar #35: Faz 3'te seçilen model.
+FAZ3_MODEL = ModelConfig(window_days=LONG_WINDOW, xi=0.001, xg_weight=0.5)
+
+
+def render_promoted_report(conn: sqlite3.Connection) -> str:
+    """Karar #36: yeni çıkan takım ayarının Faz 3 protokolüyle (karar #33) değerlendirilmesi."""
+    exp = Experiment(conn)
+    base = FAZ3_MODEL
+    candidate = replace(base, promoted_effect=True)
+    kept_cfg, _ = exp.tune([base, candidate])
+    kept = kept_cfg == candidate
+
+    rows = [_diff_row(exp, "Yeni çıkan takım ayarı (tüm maçlar)", candidate, base)]
+
+    # Tanı: yalnızca yeni çıkan takımın oynadığı maçlar (bahis alt grubu değildir).
+    flags = exp.matches.join(promoted_flags(exp.matches)).set_index("match_id")
+    involved = set(flags.index[flags.home_promoted | flags.away_promoted])
+    diag = {"değişiklik": "Tanı: yeni çıkan takımın oynadığı maçlar"}
+    for label, seasons in (("ayar", TUNING_SEASONS), ("iç kontrol", CHECK_SEASONS)):
+        p_new, p_old = exp.predictions(candidate), exp.predictions(base)
+        mask = (p_new.season.isin(seasons) & p_new.match_id.isin(involved)).to_numpy()
+        diff = (metrics.log_loss_per_match(p_new.loc[mask, COLS].to_numpy(), p_new.ftr[mask])
+                - metrics.log_loss_per_match(p_old.loc[mask, COLS].to_numpy(), p_old.ftr[mask]))
+        mean, lo, hi = metrics.paired_bootstrap(diff)
+        diag[f"{label}: fark"] = round(mean, 4)
+        diag[f"{label}: %95 GA"] = f"{lo:.4f} … {hi:.4f} (n={int(mask.sum())})"
+    rows.append(diag)
+
+    shifts = (exp.predictions(candidate).groupby("season")[["promoted_attack", "promoted_defence"]].mean()
+              .round(3).reset_index())
+    shifts["season"] = shifts.season.map(season_label)
+
+    final = candidate if kept else base
+    save_predictions(conn, "poisson", final.key(), exp.predictions(final))
+    summary, gaps = _vs_market(exp, {"Faz 3 model": base, "Faz 3 + yeni çıkan": candidate})
+
+    parts = [
+        "# Yeni çıkan takım ayarı (karar #36)",
+        f"Oluşturulma: {datetime.now(timezone.utc).isoformat(timespec='seconds')} (UTC).",
+        "## Tanım (ön kayıt, sonuçlardan önce commit edildi)",
+        "\n".join([
+            "- Bir takım, bir önceki sezon veride Premier League'de yoksa o sezon boyunca yeni çıkan sayılır.",
+            "- Modele yeni çıkan takımın hücumuna ve savunmasına iki sabit kayma eklenir; cezasızdır ve eğitim "
+            "penceresindeki yeni çıkan takımlardan öğrenilir. Elle seçilen sayı veya ızgara yoktur.",
+            f"- Temel: Faz 3 modeli `{base.key()}`. Ayar sezonlarında log-loss düşmezse elenir (karar #33).",
+            f"- Karar: **{'tutuldu' if kept else 'elendi'}**.",
+        ]),
+        "## Katkı (log-loss farkı, negatif = iyileşme)",
+        _md(pd.DataFrame(rows)),
+        "## Öğrenilen kaymalar (sezon içi karar günlerinin ortalaması)",
+        "Negatif hücum kayması daha az gol atmak, negatif savunma kayması daha çok gol yemek demektir. "
+        "2020/21'in başında eğitim verisinde yeni çıkan takım bulunmadığı için kayma sıfırdan başlar "
+        "(2019/20 ilk sezon, öncesi veride yok).",
+        _md(shifts),
+        "## Piyasa ile karşılaştırma",
+        _md(summary),
+        _md(gaps),
+    ]
+    return "\n\n".join(parts) + "\n"
+

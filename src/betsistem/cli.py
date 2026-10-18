@@ -57,6 +57,9 @@ def main(argv=None) -> int:
     p_m3 = sub.add_parser("faz3-report", help="Faz 3: Dixon-Coles, zaman ağırlığı ve xG katkı raporu")
     p_m3.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz3_model.md")
 
+    p_pr = sub.add_parser("promoted-report", help="Karar #36: yeni çıkan takım ayarını Faz 3 protokolüyle test et")
+    p_pr.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz3_yeni_cikan.md")
+
     args = parser.parse_args(argv)
     conn = connect(args.db)
     init_db(conn)
@@ -99,6 +102,10 @@ def main(argv=None) -> int:
         elif args.command == "faz3-report":
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(experiments.render_report(conn), encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out}")
+        elif args.command == "promoted-report":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(experiments.render_promoted_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)

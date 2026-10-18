@@ -78,3 +78,15 @@ def test_time_weight_changes_predictions(matches):
     plain = walk_forward(matches, seasons=["2021"], config=ModelConfig(window_days=3650))
     weighted = walk_forward(matches, seasons=["2021"], config=ModelConfig(window_days=3650, xi=0.01))
     assert not np.allclose(plain.p_home, weighted.p_home)
+
+
+def test_promoted_flags():
+    from betsistem.model.predict import promoted_flags
+    df = pd.DataFrame({
+        "season": ["1920", "1920", "2021", "2021"],
+        "home": ["A", "B", "A", "C"],
+        "away": ["B", "A", "C", "A"],
+    })
+    flags = promoted_flags(df)
+    assert flags.home_promoted.tolist() == [False, False, False, True]  # ilk sezonda kimse yeni çıkan değil
+    assert flags.away_promoted.tolist() == [False, False, True, False]

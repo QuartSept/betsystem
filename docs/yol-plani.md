@@ -99,6 +99,7 @@ Basit model üç yönde geliştirilir; her değişiklik yalnızca model seçimi 
 - **Pazar:** Alt/üst 2.5, 1-X-2 sistemi doğrulandıktan sonra eklenir.
 - **Geçme şartı:** Olasılıklar iyi kalibre edilmiş ve her değişikliğin doğrulama dönemindeki katkısı ayrı ayrı ölçülmüş.
 - **Sonuç (18 Ekim 2026):** Ayarlar 2020/21–2021/22'de seçildi, 2022/23 iç kontrol. Dixon-Coles log-loss'u kötüleştirdi (+0,0013) ve elendi. Zaman ağırlığı (ξ = 0,001/gün, yarı ömür ≈ 2 yıl) ve xG (hedefin yarısı xG) tutuldu. Faz 3 modeli Faz 2'ye göre ayar sezonlarında 0,006, iç kontrolde 0,010 daha iyi. Tek tek adımların güven aralıkları çoğunlukla sıfırı içeriyor. ECE 0,0195 (Pinnacle erken 0,0242). Piyasaya göre fark +0,021 (%95 GA 0,011–0,032): model hâlâ Pinnacle erken oranından anlamlı ölçüde kötü. Ayrıntı: `reports/faz3_model.md`.
+- **Ek deneme (karar #36–#37):** Önceden tanımlanan yeni çıkan takım ayarı aynı protokolle test edildi ve elendi. Ayrıntı: `reports/faz3_yeni_cikan.md`.
 
 ## Faz 4 – Geriye dönük test
 
@@ -187,6 +188,7 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 34 | Dixon-Coles elendi (ayar sezonlarında log-loss +0,0013) | Faz 3 |
 | 35 | Faz 3 modeli: Poisson, L2 = 1, tüm geçmiş, zaman ağırlığı ξ = 0,001/gün, hedef = 0,5·gol + 0,5·xG. Faz 4'e bu modelle girilir | Faz 3 |
 | 36 | Yeni çıkan takım ayarı (ön kayıt, sonuç görülmeden tanımlandı): bir takım, bir önceki sezon veride Premier League'de yoksa o sezon boyunca "yeni çıkan" sayılır. Modele iki ek parametre eklenir: yeni çıkan takımın hücumuna ve savunmasına sabit kayma (cezasız, eğitim penceresindeki yeni çıkan takımlardan öğrenilir). Elle seçilen sayı veya ızgara yoktur. Aday, Faz 3 modeline eklenir ve karar #33 protokolüyle değerlendirilir: ayar sezonlarında (2020/21–2021/22) log-loss düşürmezse elenir. Tanı amaçlı ayrıca yeni çıkan takımın oynadığı maçlarda fark raporlanır; bu alt grup bahis için kullanılmaz | Faz 3 |
+| 37 | Karar #36 sonucu: yeni çıkan takım ayarı **elendi**. Ayar sezonlarında log-loss +0,0029 (%95 GA −0,0000…0,0062), iç kontrolde +0,0011; bozulma yeni çıkan takımların maçlarında yoğun (+0,0096, n = 216). Öğrenilen kayma sezondan sezona tutarsız (2020/21: −0,22/−0,30; 2021/22: +0,03/+0,01). Ayarın başka biçimleri sonuç görüldükten sonra denenmez (çatallanan yollar); Faz 4'e karar #35'teki modelle girilir | Faz 3 |
 
 ## Riskler ve gerçekçi beklentiler
 

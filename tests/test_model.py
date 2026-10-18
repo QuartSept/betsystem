@@ -83,3 +83,32 @@ def test_fit_rho_recovers_value():
     n = len(hg)
     est = fit_rho(np.full(n, lam_h), np.full(n, lam_a), hg, ag)
     assert est == pytest.approx(rho, abs=0.03)
+
+
+def test_fit_recovers_promoted_shift():
+    rng = np.random.default_rng(3)
+    teams = [f"T{i}" for i in range(12)]
+    promoted = {"T9", "T10", "T11"}
+    shift_att, shift_def = -0.3, -0.25
+    home, away, hg, ag, fh, fa = [], [], [], [], [], []
+    for _ in range(60):
+        for i in teams:
+            for j in teams:
+                if i == j:
+                    continue
+                pi, pj = i in promoted, j in promoted
+                home.append(i); away.append(j); fh.append(pi); fa.append(pj)
+                hg.append(rng.poisson(np.exp(0.35 + shift_att * pi - shift_def * pj)))
+                ag.append(rng.poisson(np.exp(0.1 + shift_att * pj - shift_def * pi)))
+    # Takım gücü cezası güçlü: kayma takım parametrelerine değil ortak parametreye yüklenmeli.
+    m = fit_poisson(home, away, hg, ag, l2=1e4, home_promoted=fh, away_promoted=fa)
+    assert m.promoted_attack == pytest.approx(shift_att, abs=0.05)
+    assert m.promoted_defence == pytest.approx(shift_def, abs=0.05)
+    lam_plain = m.expected_goals("T0", "T1")
+    lam_vs_promoted = m.expected_goals("T0", "T1", away_promoted=True)
+    assert lam_vs_promoted[0] > lam_plain[0]  # zayıf savunmaya karşı daha çok gol
+
+
+def test_without_flags_shift_stays_zero():
+    m = fit_poisson(["A", "B"], ["B", "A"], [2, 1], [0, 1])
+    assert (m.promoted_attack, m.promoted_defence) == (0.0, 0.0)
