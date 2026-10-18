@@ -186,6 +186,7 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 33 | Faz 3 protokolü: ayarlar yalnızca 2020/21–2021/22'de seçilir, 2022/23 iç kontrol olarak raporlanır; her adımda önceki model de aday olur, iyileştirmeyen değişiklik elenir | Faz 3 |
 | 34 | Dixon-Coles elendi (ayar sezonlarında log-loss +0,0013) | Faz 3 |
 | 35 | Faz 3 modeli: Poisson, L2 = 1, tüm geçmiş, zaman ağırlığı ξ = 0,001/gün, hedef = 0,5·gol + 0,5·xG. Faz 4'e bu modelle girilir | Faz 3 |
+| 36 | Yeni çıkan takım ayarı (ön kayıt, sonuç görülmeden tanımlandı): bir takım, bir önceki sezon veride Premier League'de yoksa o sezon boyunca "yeni çıkan" sayılır. Modele iki ek parametre eklenir: yeni çıkan takımın hücumuna ve savunmasına sabit kayma (cezasız, eğitim penceresindeki yeni çıkan takımlardan öğrenilir). Elle seçilen sayı veya ızgara yoktur. Aday, Faz 3 modeline eklenir ve karar #33 protokolüyle değerlendirilir: ayar sezonlarında (2020/21–2021/22) log-loss düşürmezse elenir. Tanı amaçlı ayrıca yeni çıkan takımın oynadığı maçlarda fark raporlanır; bu alt grup bahis için kullanılmaz | Faz 3 |
 
 ## Riskler ve gerçekçi beklentiler
 
