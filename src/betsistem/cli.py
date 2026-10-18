@@ -8,6 +8,7 @@ from betsistem.config import DB_PATH, LEAGUES, PROJECT_ROOT, PROTOTYPE_SEASON, s
 from betsistem.data.db import UnknownTeamError, connect, init_db
 from betsistem.data.football_data import load_football_data
 from betsistem.data.iddaa import import_iddaa
+from betsistem.asama2 import faz10
 from betsistem.backtest import run as backtest_run
 from betsistem.backtest import sample_size
 from betsistem.data import quality
@@ -79,6 +80,9 @@ def main(argv=None) -> int:
 
     p_lr = sub.add_parser("league-report", help="Karar #48: bir ligde Faz 2, Faz 3 ve hareket testi")
     p_lr.add_argument("--league", nargs="+", required=True, choices=sorted(LEAGUES))
+
+    p_f10 = sub.add_parser("faz10-run", help="Faz 10: ön kayıtlı 10a, 10c, 10d testlerini çalıştır")
+    p_f10.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz10_sonuclar.md")
 
     args = parser.parse_args(argv)
     conn = connect(args.db)
@@ -154,6 +158,12 @@ def main(argv=None) -> int:
                 mv = res["movement"]
                 print(f"{league}: model {res['final'].key()}, hareket eğimi {mv.slope:.4f}"
                       f" (alt sınır {mv.lo_one_sided:.4f}) {'GEÇTİ' if mv.passes else 'geçemedi'} -> {out}")
+        elif args.command == "faz10-run":
+            text, results = faz10.render_report(conn)
+            args.out.write_text(text, encoding="utf-8")
+            for r in results:
+                print(f"{r.name}: {r.verdict}")
+            print(f"Rapor yazıldı: {args.out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)
             print(f"İddaa: {res.added} yeni kayıt, {res.already_present} zaten vardı")

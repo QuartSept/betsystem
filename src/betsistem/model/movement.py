@@ -41,8 +41,14 @@ class MovementResult:
 
 
 def movement_test(model: np.ndarray, early: np.ndarray, closing: np.ndarray,
-                  n_boot: int = N_BOOT, seed: int = SEED) -> MovementResult:
-    """Girdiler (n, 3) olasılık matrisleri [H, D, A], aynı maç sırasıyla."""
+                  n_boot: int = N_BOOT, seed: int = SEED, alpha: float = 0.05,
+                  names=("H", "D", "A")) -> MovementResult:
+    """Girdiler (n, k) olasılık matrisleri, aynı maç sırasıyla; varsayılan k = 3 [H, D, A].
+
+    Tek sütun (k = 1) verilirse tek bir sonucun (ör. yalnız beraberlik, yalnız üst) testi yapılır.
+    lo_one_sided: tek yönlü (1 − α) alt sınır; Faz 10'da α = 0,05/3 (#72).
+    """
+    model, early, closing = (np.asarray(a, dtype=float).reshape(len(a), -1) for a in (model, early, closing))
     x = _logit(model) - _logit(early)
     y = _logit(closing) - _logit(early)
     n = len(x)
@@ -51,11 +57,10 @@ def movement_test(model: np.ndarray, early: np.ndarray, closing: np.ndarray,
     for b in range(n_boot):
         idx = rng.integers(0, n, n)
         boots[b] = _slope(x[idx].ravel(), y[idx].ravel())
-    names = ("H", "D", "A")
     return MovementResult(
         matches=n,
         slope=_slope(x.ravel(), y.ravel()),
-        lo_one_sided=float(np.percentile(boots, 5)),
+        lo_one_sided=float(np.percentile(boots, 100 * alpha)),
         lo=float(np.percentile(boots, 2.5)),
         hi=float(np.percentile(boots, 97.5)),
         corr_by_outcome={o: float(np.corrcoef(x[:, k], y[:, k])[0, 1]) for k, o in enumerate(names)},

@@ -43,3 +43,20 @@ def test_select_leagues_rule():
         "bilgi kazancı": [0.05, 0.01, 0.09, 0.03, 0.02],
     })
     assert select_leagues(table) == ["C", "D"]  # E0 referans, B uygun değil
+
+
+def test_movement_single_column():
+    rng = np.random.default_rng(2)
+    early = rng.uniform(0.2, 0.35, size=(1500, 1))
+    signal = rng.normal(0, 0.3, size=early.shape)
+    lg = np.log(early / (1 - early))
+    model = 1 / (1 + np.exp(-(lg + signal)))
+    closing = 1 / (1 + np.exp(-(lg + 0.3 * signal + rng.normal(0, 0.05, size=early.shape))))
+    r = movement_test(model, early, closing, n_boot=300, alpha=0.05 / 3, names=("X",))
+    assert r.passes and set(r.corr_by_outcome) == {"X"}
+
+
+def test_bootstrap_alpha_lowers_bound():
+    from betsistem.backtest.engine import bootstrap_mean
+    v = np.random.default_rng(3).normal(0.01, 0.1, 400)
+    assert bootstrap_mean(v, alpha=0.05 / 3)["lo_one_sided"] < bootstrap_mean(v)["lo_one_sided"]

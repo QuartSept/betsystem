@@ -65,7 +65,8 @@ def kelly_path(bets: pd.DataFrame) -> pd.Series:
     return pd.Series(path, dtype=float)
 
 
-def bootstrap_mean(values, n_boot: int = N_BOOT, seed: int = SEED) -> dict:
+def bootstrap_mean(values, n_boot: int = N_BOOT, seed: int = SEED, alpha: float = 0.05) -> dict:
+    """lo_one_sided: tek yönlü (1 − α) alt sınır, yani α yüzdeliği (karar #41; Faz 10'da α = 0,05/3, #72)."""
     v = np.asarray(values, dtype=float)
     if len(v) == 0:
         return {"mean": np.nan, "lo_one_sided": np.nan, "lo": np.nan, "hi": np.nan}
@@ -73,7 +74,7 @@ def bootstrap_mean(values, n_boot: int = N_BOOT, seed: int = SEED) -> dict:
     means = v[rng.integers(0, len(v), size=(n_boot, len(v)))].mean(axis=1)
     return {
         "mean": float(v.mean()),
-        "lo_one_sided": float(np.percentile(means, 5)),  # karar #41
+        "lo_one_sided": float(np.percentile(means, 100 * alpha)),
         "lo": float(np.percentile(means, 2.5)),
         "hi": float(np.percentile(means, 97.5)),
     }
@@ -93,15 +94,15 @@ class Summary:
         return self.bets >= n_required and self.clv["mean"] > 0 and self.clv["lo_one_sided"] > 0
 
 
-def summarize(settled: pd.DataFrame) -> Summary:
+def summarize(settled: pd.DataFrame, alpha: float = 0.05) -> Summary:
     ordered = settled.sort_values(["decision_date", "match_id"])
     kelly = kelly_path(ordered) if len(ordered) else pd.Series([KELLY_START])
     peak = np.maximum.accumulate(np.concatenate([[KELLY_START], kelly.to_numpy()]))[1:]
     kelly_dd = float(((peak - kelly.to_numpy()) / peak).max()) if len(kelly) else 0.0
     return Summary(
         bets=len(settled),
-        clv=bootstrap_mean(settled.clv),
-        roi=bootstrap_mean(settled.pnl),
+        clv=bootstrap_mean(settled.clv, alpha=alpha),
+        roi=bootstrap_mean(settled.pnl, alpha=alpha),
         max_drawdown=max_drawdown(ordered.pnl),
         kelly_final=float(kelly.iloc[-1]),
         kelly_max_drawdown_pct=kelly_dd,
