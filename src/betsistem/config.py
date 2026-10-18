@@ -13,8 +13,19 @@ MODEL_SELECTION_SEASONS = ("1920", "2021", "2122", "2223")
 FINAL_TEST_SEASONS = ("2324", "2425")
 PROTOTYPE_SEASON = "2223"  # Karar #15
 
-# Karar #3: Premier League ile başlanır.
-LEAGUES = {"E0": "Premier League"}
+# Karar #3: Premier League ile başlanır. Diğerleri lig taraması (karar #47) için yüklenir.
+LEAGUES = {
+    "E0": "İngiltere Premier League", "E1": "İngiltere Championship", "E2": "İngiltere League One",
+    "E3": "İngiltere League Two", "EC": "İngiltere National League",
+    "SC0": "İskoçya Premiership", "SC1": "İskoçya Championship", "SC2": "İskoçya League One",
+    "SC3": "İskoçya League Two",
+    "D1": "Almanya Bundesliga", "D2": "Almanya 2. Bundesliga",
+    "I1": "İtalya Serie A", "I2": "İtalya Serie B",
+    "SP1": "İspanya La Liga", "SP2": "İspanya Segunda",
+    "F1": "Fransa Ligue 1", "F2": "Fransa Ligue 2",
+    "N1": "Hollanda Eredivisie", "B1": "Belçika Pro League", "P1": "Portekiz Primeira Liga",
+    "T1": "Türkiye Süper Lig", "G1": "Yunanistan Super League",
+}
 
 # Karar #10: yalnızca 1-X-2.
 MARKET_1X2 = "1X2"

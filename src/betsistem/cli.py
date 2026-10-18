@@ -11,8 +11,8 @@ from betsistem.data.iddaa import import_iddaa
 from betsistem.backtest import run as backtest_run
 from betsistem.backtest import sample_size
 from betsistem.data import quality
-from betsistem.model import evaluation, experiments
-from betsistem.data.raw import RawDataError, download_football_data, import_football_data
+from betsistem.model import evaluation, experiments, screening
+from betsistem.data.raw import RawDataError, download_football_data, import_football_data, import_football_data_zip
 from betsistem.data.understat import fetch_understat, load_understat
 
 
@@ -67,6 +67,13 @@ def main(argv=None) -> int:
     p_bf = sub.add_parser("backtest-final", help="Faz 4: kilitli final seti TEK SEFER çalıştır (geri alınamaz)")
     p_bf.add_argument("--confirm", required=True, help=f"Onay ifadesi: {backtest_run.CONFIRM_PHRASE!r}")
     p_bf.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz4_final.md")
+
+    p_zip = sub.add_parser("import-zip", help="football-data sezon paketini (data.zip) yükle: tüm ligler")
+    p_zip.add_argument("file", type=Path)
+    p_zip.add_argument("--season", required=True, help="Örn. 2122")
+
+    p_ls = sub.add_parser("league-screen", help="Karar #47: lig taraması ve hareket testi referansı")
+    p_ls.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "lig_taramasi.md")
 
     args = parser.parse_args(argv)
     conn = connect(args.db)
@@ -123,6 +130,14 @@ def main(argv=None) -> int:
             report = backtest_run.final_report(conn, args.confirm)
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(report, encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out}")
+        elif args.command == "import-zip":
+            for league, version_id in import_football_data_zip(conn, args.file, args.season):
+                res = load_football_data(conn, version_id)
+                print(f"{league} {season_label(args.season)}: sürüm #{version_id}, {res.matches} maç, {res.odds} oran")
+        elif args.command == "league-screen":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(screening.render_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)

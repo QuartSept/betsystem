@@ -96,3 +96,12 @@ def test_parse_odds_columns_newer_bookmaker_codes():
         "PPH": ("PP", "early", "H"),
         "BVCA": ("BV", "closing", "A"),
     }
+
+
+def test_non_numeric_price_is_skipped(conn, tmp_path):
+    text = FIXTURE.read_text(encoding="utf-8").replace(",4.64,3.62,1.85,", ",#,3.62,1.85,", 1)
+    bad = tmp_path / "bad.csv"
+    bad.write_text(text, encoding="utf-8")
+    vid = import_football_data(conn, "E0", "2223", bad, raw_dir=tmp_path)
+    res = load_football_data(conn, vid, raw_dir=tmp_path)
+    assert (res.odds, res.skipped_invalid_prices) == (70, 1)

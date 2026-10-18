@@ -1,5 +1,8 @@
 """Veri kalite raporu: sezon ve sütun bazında doluluk, xG kapsaması, Pinnacle tutarlılığı.
 
+Sezon özeti tüm ligleri kapsar; oran ve Pinnacle bölümleri Premier League (E0) içindir. Diğer liglerin
+oran kalitesi lig taraması raporunda (karar #47) yer alır.
+
 Yalnızca veri kalitesine bakar; sonuçlara veya getirilere bakmaz. Bu yüzden kilitli final
 sezonlarında (karar #15) da çalıştırılabilir.
 """
@@ -42,11 +45,12 @@ def odds_coverage(conn: sqlite3.Connection) -> pd.DataFrame:
         FROM (SELECT match_id, bookmaker, timing FROM odds WHERE market = '1X2'
               GROUP BY match_id, bookmaker, timing HAVING COUNT(DISTINCT outcome) = 3) o
         JOIN matches m ON m.id = o.match_id
+        WHERE m.league = 'E0'
         GROUP BY m.season, col
         """,
         conn,
     )
-    totals = pd.read_sql("SELECT season, COUNT(*) AS total FROM matches GROUP BY season", conn)
+    totals = pd.read_sql("SELECT season, COUNT(*) AS total FROM matches WHERE league = 'E0' GROUP BY season", conn)
     df = df.merge(totals, on="season")
     df["pct"] = (100 * df["n"] / df["total"]).round(1)
     return df.pivot(index="col", columns="season", values="pct").fillna(0.0).sort_index()
@@ -71,6 +75,7 @@ def bet_price_missing(conn: sqlite3.Connection, bookmaker: str = BET_PRICE_BOOKM
                m.id IN ({_complete_matches_sql('early')}) AS has_early,
                m.id IN ({_complete_matches_sql('closing')}) AS has_closing
         FROM matches m JOIN teams h ON h.id = m.home_team_id JOIN teams a ON a.id = m.away_team_id
+        WHERE m.league = 'E0'
         ORDER BY m.match_date
         """,
         conn,

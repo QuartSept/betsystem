@@ -163,7 +163,11 @@ def load_football_data(conn: sqlite3.Connection, data_version_id: int, *, raw_di
                 price = rec[oc.column]
                 if pd.isna(price):
                     continue
-                price = float(price)
+                try:
+                    price = float(price)
+                except ValueError:  # ör. '#': bozuk hücre
+                    result.skipped_invalid_prices += 1
+                    continue
                 if price <= 1.0:
                     result.skipped_invalid_prices += 1
                     continue

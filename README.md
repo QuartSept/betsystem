@@ -41,6 +41,10 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 # Faz 4: model seçimi döneminde backtest ve eşik seçimi (reports/faz4_secim.md)
 .venv\Scripts\betsistem backtest-select
 
+# Tüm ligler: football-data sezon paketi ve lig taraması (reports/lig_taramasi.md)
+.venv\Scripts\betsistem import-zip data_2122.zip --season 2122
+.venv\Scripts\betsistem league-screen
+
 # İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
 .venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
 ```

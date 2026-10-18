@@ -63,7 +63,8 @@ def clv_proxy(conn: sqlite3.Connection, bet_bookmaker: str, benchmark: str = "PS
     placeholders = ",".join("?" for _ in seasons)
     early = pd.read_sql(
         "SELECT o.match_id, o.outcome, o.price FROM odds o JOIN matches m ON m.id = o.match_id"
-        f" WHERE o.market = '1X2' AND o.bookmaker = ? AND o.timing = 'early' AND m.season IN ({placeholders})",
+        f" WHERE o.market = '1X2' AND o.bookmaker = ? AND o.timing = 'early' AND m.league = 'E0'"
+        f" AND m.season IN ({placeholders})",
         conn,
         params=(bet_bookmaker, *seasons),
     )

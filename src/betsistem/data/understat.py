@@ -18,7 +18,8 @@ from betsistem.data.raw import RawDataError, store_raw
 
 SOURCE = "understat"
 URL = "https://understat.com/getLeagueData/{league}/{year}"
-LEAGUE_CODES = {"E0": "EPL"}  # football-data kodu -> Understat kodu
+# football-data kodu -> Understat kodu
+LEAGUE_CODES = {"E0": "EPL", "SP1": "La_liga", "D1": "Bundesliga", "I1": "Serie_A", "F1": "Ligue_1"}
 # Bu kadar günden fazla tarih farkı olan eşleşmeler raporlanır (Understat saati UTC).
 MAX_DATE_DIFF_DAYS = 1
 

@@ -19,17 +19,23 @@ def remove_margin(prices: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def market_prices(conn: sqlite3.Connection, bookmaker: str) -> pd.DataFrame:
-    """match_id, season, timing ve H/D/A oranları; üç sonucu tam olmayan maçlar atlanır."""
-    df = pd.read_sql(
+def market_prices(conn: sqlite3.Connection, bookmaker: str, league: str | None = "E0") -> pd.DataFrame:
+    """match_id, season, timing ve H/D/A oranları; üç sonucu tam olmayan maçlar atlanır.
+
+    league=None tüm ligleri döndürür; varsayılan Premier League, ligler karışmasın diye.
+    """
+    sql = (
         "SELECT o.match_id, m.season, o.timing, o.outcome, o.price FROM odds o JOIN matches m ON m.id = o.match_id"
-        " WHERE o.market = '1X2' AND o.bookmaker = ?",
-        conn,
-        params=(bookmaker,),
+        " WHERE o.market = '1X2' AND o.bookmaker = ?"
     )
+    params: tuple = (bookmaker,)
+    if league is not None:
+        sql += " AND m.league = ?"
+        params += (league,)
+    df = pd.read_sql(sql, conn, params=params)
     wide = df.pivot_table(index=["match_id", "season", "timing"], columns="outcome", values="price")
     return wide.reindex(columns=list(OUTCOMES)).dropna()
 
 
-def fair_probabilities(conn: sqlite3.Connection, bookmaker: str) -> pd.DataFrame:
-    return remove_margin(market_prices(conn, bookmaker)).reset_index()
+def fair_probabilities(conn: sqlite3.Connection, bookmaker: str, league: str | None = "E0") -> pd.DataFrame:
+    return remove_margin(market_prices(conn, bookmaker, league)).reset_index()

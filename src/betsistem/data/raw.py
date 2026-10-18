@@ -1,6 +1,7 @@
 """Ham veri edinme. Ham dosyalar değiştirilmeden saklanır; her dosya bir veri sürümüdür."""
 
 import hashlib
+import zipfile
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,3 +102,26 @@ def import_football_data(
         origin=f"manual:{Path(file).name}",
         raw_dir=raw_dir,
     )
+
+
+def import_football_data_zip(
+    conn: sqlite3.Connection, zip_path: Path, season: str, *, raw_dir: Path = RAW_DIR
+) -> list[tuple[str, int]]:
+    """football-data sezon paketi (data.zip): her lig CSV'si ayrı veri sürümü olarak saklanır.
+
+    Lig kodu dosya adından alınır (SP1.csv -> SP1); yükleyici dosyadaki Div sütununu ayrıca doğrular.
+    """
+    out = []
+    with zipfile.ZipFile(zip_path) as z:
+        for name in sorted(z.namelist()):
+            if not name.lower().endswith(".csv"):
+                continue
+            content = z.read(name)
+            _check_football_data_csv(content)
+            league = Path(name).stem
+            version_id = store_raw(
+                conn, content, source=FOOTBALL_DATA_SOURCE, league=league, season=season,
+                origin=f"manual:{Path(zip_path).name}/{name}", raw_dir=raw_dir,
+            )
+            out.append((league, version_id))
+    return out

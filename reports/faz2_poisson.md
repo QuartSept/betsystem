@@ -1,6 +1,6 @@
 # Faz 2: Poisson modeli ve piyasa karşılaştırması
 
-Oluşturulma: 2026-10-18T15:35:23+00:00 (UTC).
+Oluşturulma: 2026-10-18T15:57:13+00:00 (UTC).
 
 ## Kurulum
 
