@@ -2,7 +2,8 @@
 
 Futbol bahis analiz sistemi. Amaç ve kurallar: [docs/yol-plani.md](docs/yol-plani.md).
 
-**Durum:** Proje Faz 7 kararıyla durduruldu: model piyasayı yenmiyor (karar #53). Özet: [reports/sonuc_raporu.md](reports/sonuc_raporu.md). Kilitli final setleri açılmadı.
+**Durum:** Aşama 1, Faz 7 kararıyla kapandı: model piyasayı yenmiyor (karar #53, [sonuç raporu](reports/sonuc_raporu.md)). Kilitli final setleri açılmadı.
+Aşama 2 başladı: İddaa oranlarının adil piyasa fiyatından sapması ([docs/yol-plani-v2.md](docs/yol-plani-v2.md), karar #54–#76).
 
 ## Kurulum
 

@@ -151,7 +151,7 @@ Karar, önceden yazılmış bu kurallarla verilir; sonuçları gördükten sonra
 
 ## Karar kaydı
 
-Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. Yeni kararlar bu tabloya eklenir.
+Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. Yeni kararlar bu tabloya eklenir. #54–#76 Aşama 2 kararlarıdır; gerekçeleri `docs/yol-plani-v2.md`'de.
 
 | # | Karar | Bölüm |
 | --- | --- | --- |
@@ -208,6 +208,29 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 51 | B1 için N (karar #48 yöntemiyle, 2019/20–2022/23, Pinnacle erken, δ = %1,5): σ = 0,0995, **N = 273**. Rastgele bahsin beklenen CLV'si −%4,0 (Premier League −%1,9) | Faz 4 |
 | 52 | B1 Faz 4 seçim dönemi sonucu (karar #38–#42, N = 273): geçme şartı **sağlanmadı**. Seçilen eşik 0,10, 479 bahis: ortalama CLV −0,0284 (tek yönlü alt sınır −0,0377), ROI −0,002. Üç sezonda da CLV negatif. Rastgele bahsin beklenen CLV'si −0,040: model sinyali CLV'yi yaklaşık 1,2 puan iyileştiriyor ama %4,1'lik erken marjı aşmıyor. B365 duyarlılığı −0,0515. B1 kilitli final seti açılmadı | Faz 4 |
 | 53 | Faz 7 kararı: model piyasayı yenmiyor (Katman 1: Hayır). Proje durdurulur; gerçek para yok. Premier League ve Belçika kilitli final setleri (2023/24–2024/25) açılmadı ve kilitli kalır; ileride önceden kaydedilmiş yeni bir model için bağımsız doğrulama verisi olarak saklanır. Sonuç raporu: `reports/sonuc_raporu.md` | Faz 7 |
+| 54 | Aşama 2 başladı; olasılık kaynağı marjsız piyasa, model ikincil | Temel ilke |
+| 55 | Faz sırası 8 → 12 ve geçme şartları bu plandaki gibi; Faz 9 ve 10 paralel yürüyebilir | Yol haritası |
+| 56 | Hedef ligler E0 ve T1; başka lig ancak MBS 1 maç oranı yeterliyse | Faz 8 |
+| 57 | MBS 1 olmayan maçta bahis yok; kombine yasağı (#2) korunur | Faz 8, 12 |
+| 58 | İddaa oranları yalnızca kullanım koşullarına uygun yöntemle ve yalnızca eklenen tabloya kaydedilir | Faz 8, 9 |
+| 59 | Belçika 2022/23 kapanış verisi Faz 8'de kontrol edilir (ön kontrol: gürültüyle uyumlu) | Faz 8 |
+| 60 | Panel Streamlit ile kurulur; ana olasılık marjsız piyasa, model bilgi için; eşik altında "fırsat yok"; otomatik bahis yok | Faz 9 |
+| 61 | Faz 10 test listesi kapalı: 10a, 10c, 10d (10b #74 ile çıkarıldı) | Faz 10 |
+| 62 | Faz 10'daki her nihai karar (hareket testi ve CLV alt sınırı) tek yönlü α = 0,05 / 3 ≈ 0,0167 ile; N de bu α ile hesaplanır (#72 ile güncellendi) | Faz 10 |
+| 63 | 10a: ana şirket B365, referans marjsız piyasa ortalaması erken, E0 ve T1 birlikte tek test; bu testte #24 istisnası | Faz 10 |
+| 64 | 10d çoğaltma ligleri: T1, F2, I2, E2, E3 | Faz 10 |
+| 65 | Faz 11 penceresi 2025/26 ve 2026/27'nin 31 Aralık 2026'ya kadarki maçları; referans BFE (≥ %90 doluluk), yoksa piyasa ortalaması; her fikir bir kez; en erken Ocak 2027 | Faz 11 |
+| 66 | Faz 12 kuralı: Cuma/Salı fikstür dosyası güncellemesi karar anı; EV eşiği ve süre #76'daki kuralla | Faz 12 |
+| 67 | Faz 12 N'si δ = %1,5 ile, σ Faz 8 kayıtlarından hesaplanıp sabitlenir | Faz 12 |
+| 68 | Karar tablosu bu plandaki gibi; modelsiz İddaa kuralında yalnızca Katman 2 aranır | Faz 12 |
+| 69 | Kilitli final setler (#44) Aşama 2'de açılmaz | Kurallar |
+| 70 | Çalışma düzeni: kararlar ve planlama Claude ile bu planda; kod depoda; her yeni karar önce bu kayda eklenir | Genel |
+| 71 | Fizibilite kapısı: Faz 10, 11 ve 12'deki her test, sonuçlara ve kapanışa bakmadan, yalnızca fiyat ilişkilerinden beklenen bahis sayısını N ile karşılaştırır; N'nin altındaysa test "yetersiz güç" olarak raporlanır ve sonuç analizi yapılmaz | Fizibilite |
+| 72 | α düzeltmesi Faz 10'un tüm nihai kararlarına uygulanır (yalnız hareket testine değil); Faz 11'de α = 0,05 / giren fikir sayısı; Faz 12'de α = 0,05 | Faz 10–12 |
+| 73 | 10a modelsiz olduğu için dönemi 2019/20–2022/23 (ısınma yok). Ön fizibilite: N = 361; bahis sayısı k = 0 / 0,01 / 0,02 / 0,03 için 384 / 248 / 181 / 127; yalnızca k = 0 fizibil | Faz 10 |
+| 74 | 10b ("piyasa + model birleşimi") çıkarıldı: Belçika eğimiyle (0,047) birleşik olasılığın piyasadan sapması ≈ 0,4 puan, Pinnacle erken marjı %4,1; kural kurgusu gereği bahis üretemez | Faz 10 |
+| 75 | #10 değişikliği: alt/üst 2.5, 1-X-2 doğrulanmadan Faz 10'da (10c) tarihsel olarak test edilir; yükleyici alt/üst sütunlarını okuyacak şekilde genişletilir. Canlı kural yalnızca 1-X-2 | Faz 10 |
+| 76 | Faz 12 zamanlaması ve eşik: referans, fikstür dosyasının haftalık güncellemesinden sonraki ilk indirme (sha ve zaman kaydedilir), İddaa kaydı bu andan en çok ±2 saat; e ∈ {%2; %1; %0} içinden öngörülen bahis sayısının N'ye en çok iki sezonda ulaştığı en büyük değer; hiçbiri ulaşmazsa Faz 12 test olarak yapılmaz | Faz 12 |
 
 ## Riskler ve gerçekçi beklentiler
 
@@ -222,6 +245,8 @@ Bu tür sistemleri kuranların büyük çoğunluğu piyasayı uzun vadede yenemi
 - **Bağımlılık riski:** Kayıpları kovalamamak için kasa ve kurallar önceden yazılır ve değiştirilmez.
 
 **Durum:** Proje Faz 7 kararıyla durduruldu (karar #53): model piyasayı yenmiyor. Sonuç raporu: `reports/sonuc_raporu.md`.
+
+**Aşama 2 (18 Ekim 2026, karar #54–#76):** Yeni soru İddaa oranlarının keskin piyasanın adil fiyatından sapması. Plan: `docs/yol-plani-v2.md` (orijinal taslak: `docs/yol-plani-v2-orijinal.md`). Sıradaki: Faz 8 uygulanabilirlik kontrolleri.
 
 - [x] Faz 0: Kurallar (donduruldu)
 - [x] Faz 1: Veri altyapısı
