@@ -1,10 +1,10 @@
 # Faz 2: Poisson modeli ve piyasa karşılaştırması
 
-Oluşturulma: 2026-10-18T15:05:22+00:00 (UTC).
+Oluşturulma: 2026-10-18T15:35:23+00:00 (UTC).
 
 ## Kurulum
 
-- Model: bağımsız Poisson (hücum/savunma + ev avantajı), ayarlar `{"l2": 1.0, "window_days": 730}`.
+- Model: bağımsız Poisson (hücum/savunma + ev avantajı), ayarlar `{"dixon_coles": false, "l2": 1.0, "window_days": 730, "xg_weight": 0.0, "xi": 0.0}`.
 - Walk-forward: her maç, karar gününden (Cuma/Salı, karar #6) önce oynanmış maçlarla eğitilen modelle tahmin edilir.
 - Değerlendirme: modelin en az 380 eğitim maçı gördüğü maçlar; 1510 tahminden 1140 uygun, tüm tahmin edicilerde ortak 1140 maç (2020/21, 2021/22, 2022/23).
 - Piyasa olasılıkları: 1/oran, marj oransal olarak çıkarılmış.

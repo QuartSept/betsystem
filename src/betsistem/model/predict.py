@@ -3,19 +3,23 @@
 import json
 import sqlite3
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
+import numpy as np
 import pandas as pd
 
 from betsistem.config import MODEL_SELECTION_SEASONS
-from betsistem.model.poisson import fit_poisson
+from betsistem.model.poisson import fit_poisson, fit_rho
 from betsistem.model.timeline import assert_unlocked, decision_date
 
 
 @dataclass(frozen=True)
-class PoissonConfig:
+class ModelConfig:
     l2: float = 1.0
-    window_days: int = 730  # eğitim penceresi: karar gününden önceki ~2 sezon
+    window_days: int = 730  # eğitim penceresi: karar gününden önceki gün sayısı
+    xi: float = 0.0  # zaman ağırlığı: w = exp(−ξ · gün farkı); 0 = ağırlıksız
+    xg_weight: float = 0.0  # hedef = (1 − a)·gol + a·xG; 0 = yalnızca gol
+    dixon_coles: bool = False
 
     def key(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -24,8 +28,10 @@ class PoissonConfig:
 def load_matches(conn: sqlite3.Connection, league: str = "E0") -> pd.DataFrame:
     df = pd.read_sql(
         """
-        SELECT m.id AS match_id, m.season, m.match_date, h.name AS home, a.name AS away, m.fthg, m.ftag, m.ftr
+        SELECT m.id AS match_id, m.season, m.match_date, h.name AS home, a.name AS away, m.fthg, m.ftag, m.ftr,
+               x.home_xg, x.away_xg
         FROM matches m JOIN teams h ON h.id = m.home_team_id JOIN teams a ON a.id = m.away_team_id
+        LEFT JOIN match_xg x ON x.match_id = m.id AND x.source = 'understat'
         WHERE m.league = ? ORDER BY m.match_date, m.id
         """,
         conn,
@@ -35,8 +41,18 @@ def load_matches(conn: sqlite3.Connection, league: str = "E0") -> pd.DataFrame:
     return df
 
 
-def walk_forward_poisson(
-    matches: pd.DataFrame, seasons=MODEL_SELECTION_SEASONS, config: PoissonConfig = PoissonConfig()
+def _targets(train: pd.DataFrame, xg_weight: float) -> tuple[np.ndarray, np.ndarray]:
+    """Eğitim hedefi. xG'si olmayan maçta gol kullanılır."""
+    hg, ag = train.fthg.to_numpy(float), train.ftag.to_numpy(float)
+    if xg_weight == 0:
+        return hg, ag
+    hx = train.home_xg.fillna(train.fthg).to_numpy(float)
+    ax = train.away_xg.fillna(train.ftag).to_numpy(float)
+    return (1 - xg_weight) * hg + xg_weight * hx, (1 - xg_weight) * ag + xg_weight * ax
+
+
+def walk_forward(
+    matches: pd.DataFrame, seasons=MODEL_SELECTION_SEASONS, config: ModelConfig = ModelConfig()
 ) -> pd.DataFrame:
     assert_unlocked(seasons)
     played = matches.dropna(subset=["fthg", "ftag"])
@@ -49,9 +65,13 @@ def walk_forward_poisson(
         train = played[(played.match_date < dd) & (played.match_date >= start)]
         if train.empty:
             continue
-        model = fit_poisson(
-            train.home.tolist(), train.away.tolist(), train.fthg, train.ftag, l2=config.l2
-        )
+        age = np.array([(dd - d).days for d in train.match_date], dtype=float)
+        weights = np.exp(-config.xi * age)
+        y_home, y_away = _targets(train, config.xg_weight)
+        model = fit_poisson(train.home.tolist(), train.away.tolist(), y_home, y_away, l2=config.l2, weights=weights)
+        if config.dixon_coles:
+            lam_h, lam_a = model.expected_goals_many(train.home, train.away)
+            model.rho = fit_rho(lam_h, lam_a, train.fthg.astype(int), train.ftag.astype(int), weights)
         for m in group.itertuples(index=False):
             lam_h, lam_a = model.expected_goals(m.home, m.away)
             p_h, p_d, p_a = model.outcome_probabilities(m.home, m.away)
@@ -65,6 +85,7 @@ def walk_forward_poisson(
                     "p_away": p_a,
                     "lambda_home": lam_h,
                     "lambda_away": lam_a,
+                    "rho": model.rho,
                 }
             )
     return pd.DataFrame(rows)

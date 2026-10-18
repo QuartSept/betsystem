@@ -1,17 +1,23 @@
-"""Bağımsız Poisson gol modeli (Maher 1982).
+"""Poisson gol modeli (Maher 1982) ve Dixon-Coles düşük skor düzeltmesi (1997).
 
 log λ_ev  = μ + ev_avantajı + hücum[ev]  − savunma[dep]
 log λ_dep = μ +               hücum[dep] − savunma[ev]
 
 Parametreler ağırlıklı Poisson log-olabilirliğini maksimize ederek bulunur. Hücum ve savunma
 gücüne L2 cezası uygulanır: hem modeli tanımlı kılar hem de az maçı olan (ör. lige yeni çıkmış)
-takımları ortalamaya çeker. Ağırlıklar Faz 3'teki zaman ağırlığı için hazır bekler.
+takımları ortalamaya çeker. Ağırlıklar zaman ağırlığı içindir. Gol yerine xG gibi tam sayı olmayan
+hedefler de kullanılabilir (yarı-Poisson olabilirlik; gradyan aynı).
+
+Dixon-Coles: 0-0, 1-0, 0-1, 1-1 skorlarının olasılığı τ ile düzeltilir:
+τ(0,0) = 1 − λ_ev·λ_dep·ρ, τ(0,1) = 1 + λ_ev·ρ, τ(1,0) = 1 + λ_dep·ρ, τ(1,1) = 1 − ρ.
+ρ iki aşamada bulunur: önce hücum/savunma Poisson ile, sonra ρ gerçek skorlar üzerinden
+tek boyutlu maksimum olabilirlikle (λ'lar sabit tutulur).
 """
 
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import poisson
 
 MAX_GOALS = 10
@@ -24,6 +30,7 @@ class PoissonModel:
     home_advantage: float
     attack: np.ndarray
     defence: np.ndarray
+    rho: float = 0.0
 
     def _index(self, team: str) -> int | None:
         try:
@@ -41,14 +48,58 @@ class PoissonModel:
         lam_a = np.exp(self.intercept + att_a - def_h)
         return float(lam_h), float(lam_a)
 
+    def expected_goals_many(self, home, away) -> tuple[np.ndarray, np.ndarray]:
+        """Vektörel λ'lar; görülmemiş takımların gücü 0 (ortalama)."""
+        idx = {t: i for i, t in enumerate(self.teams)}
+        att = np.append(self.attack, 0.0)
+        dfn = np.append(self.defence, 0.0)
+        hi = np.array([idx.get(t, -1) for t in home])
+        ai = np.array([idx.get(t, -1) for t in away])
+        lam_h = np.exp(self.intercept + self.home_advantage + att[hi] - dfn[ai])
+        lam_a = np.exp(self.intercept + att[ai] - dfn[hi])
+        return lam_h, lam_a
+
     def outcome_probabilities(self, home: str, away: str) -> tuple[float, float, float]:
-        return outcome_probabilities(*self.expected_goals(home, away))
+        return outcome_probabilities(*self.expected_goals(home, away), rho=self.rho)
 
 
-def outcome_probabilities(lam_home: float, lam_away: float, max_goals: int = MAX_GOALS) -> tuple[float, float, float]:
+RHO_BOUNDS = (-0.3, 0.3)
+
+
+def dixon_coles_tau(hg, ag, lam_h, lam_a, rho):
+    """Skor başına düzeltme çarpanı τ (dizi girdileri)."""
+    hg, ag = np.asarray(hg), np.asarray(ag)
+    tau = np.ones(np.broadcast(hg, ag, lam_h, lam_a).shape)
+    tau = np.where((hg == 0) & (ag == 0), 1 - lam_h * lam_a * rho, tau)
+    tau = np.where((hg == 0) & (ag == 1), 1 + lam_h * rho, tau)
+    tau = np.where((hg == 1) & (ag == 0), 1 + lam_a * rho, tau)
+    tau = np.where((hg == 1) & (ag == 1), 1 - rho, tau)
+    return tau
+
+
+def fit_rho(lam_h, lam_a, home_goals, away_goals, weights=None) -> float:
+    """λ'lar sabitken ρ'nun ağırlıklı maksimum olabilirlik tahmini (yalnızca τ terimi ρ'ya bağlıdır)."""
+    hg = np.asarray(home_goals)
+    ag = np.asarray(away_goals)
+    low = (hg <= 1) & (ag <= 1)
+    w = np.ones(len(hg)) if weights is None else np.asarray(weights, dtype=float)
+    lh, la, hg, ag, w = np.asarray(lam_h)[low], np.asarray(lam_a)[low], hg[low], ag[low], w[low]
+
+    def nll(rho):
+        return -np.sum(w * np.log(np.clip(dixon_coles_tau(hg, ag, lh, la, rho), 1e-10, None)))
+
+    return float(minimize_scalar(nll, bounds=RHO_BOUNDS, method="bounded").x)
+
+
+def outcome_probabilities(
+    lam_home: float, lam_away: float, max_goals: int = MAX_GOALS, rho: float = 0.0
+) -> tuple[float, float, float]:
     """Skor matrisinden 1-X-2 olasılıkları; kesilen kuyruk yeniden normalize edilir."""
     goals = np.arange(max_goals + 1)
     matrix = np.outer(poisson.pmf(goals, lam_home), poisson.pmf(goals, lam_away))
+    if rho:
+        matrix[:2, :2] *= dixon_coles_tau(goals[:2, None], goals[None, :2], lam_home, lam_away, rho)
+        matrix = np.clip(matrix, 0, None)
     p_home = np.tril(matrix, -1).sum()
     p_draw = np.trace(matrix)
     p_away = np.triu(matrix, 1).sum()

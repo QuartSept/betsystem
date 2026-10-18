@@ -58,3 +58,28 @@ def test_unseen_team_gets_average_strength():
     assert m.expected_goals("A", "Yeni") != m.expected_goals("B", "Yeni")
     lam_h, lam_a = m.expected_goals("Yeni1", "Yeni2")
     assert lam_h / lam_a == pytest.approx(np.exp(m.home_advantage))
+
+
+def test_dixon_coles_negative_rho_raises_draws():
+    from betsistem.model.poisson import outcome_probabilities as op
+    base = op(1.4, 1.1)
+    dc = op(1.4, 1.1, rho=-0.1)
+    assert sum(dc) == pytest.approx(1.0)
+    assert dc[1] > base[1]
+
+
+def test_fit_rho_recovers_value():
+    from scipy.stats import poisson as pois
+
+    from betsistem.model.poisson import dixon_coles_tau, fit_rho
+    rng = np.random.default_rng(1)
+    lam_h, lam_a, rho = 1.4, 1.1, -0.12
+    g = np.arange(11)
+    matrix = np.outer(pois.pmf(g, lam_h), pois.pmf(g, lam_a))
+    matrix[:2, :2] *= dixon_coles_tau(g[:2, None], g[None, :2], lam_h, lam_a, rho)
+    matrix /= matrix.sum()
+    draws = rng.choice(matrix.size, size=40000, p=matrix.ravel())
+    hg, ag = np.divmod(draws, 11)
+    n = len(hg)
+    est = fit_rho(np.full(n, lam_h), np.full(n, lam_a), hg, ag)
+    assert est == pytest.approx(rho, abs=0.03)

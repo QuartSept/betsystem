@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from betsistem.model import metrics
-from betsistem.model.predict import PoissonConfig, walk_forward_poisson
+from betsistem.model.predict import ModelConfig, walk_forward
 from betsistem.model.timeline import LockedSeasonError
 
 
@@ -32,12 +32,12 @@ def matches():
 
 
 def test_future_results_do_not_change_past_predictions(matches):
-    before = walk_forward_poisson(matches, seasons=["2021"])
+    before = walk_forward(matches, seasons=["2021"])
     cutoff = date(2020, 9, 1)
     changed = matches.copy()
     future = changed.match_date >= cutoff
     changed.loc[future, ["fthg", "ftag"]] = 9  # gelecekteki skorları boz
-    after = walk_forward_poisson(changed, seasons=["2021"])
+    after = walk_forward(changed, seasons=["2021"])
 
     past_ids = set(matches[(matches.season == "2021") & (matches.match_date < cutoff)].match_id)
     b = before.set_index("match_id").loc[sorted(past_ids)]
@@ -46,7 +46,7 @@ def test_future_results_do_not_change_past_predictions(matches):
 
 
 def test_training_uses_only_matches_before_decision_date(matches):
-    preds = walk_forward_poisson(matches, seasons=["2021"], config=PoissonConfig(window_days=3650))
+    preds = walk_forward(matches, seasons=["2021"], config=ModelConfig(window_days=3650))
     for r in preds.itertuples():
         dd = date.fromisoformat(r.decision_date)
         assert r.train_matches == (matches.match_date < dd).sum()
@@ -54,7 +54,7 @@ def test_training_uses_only_matches_before_decision_date(matches):
 
 def test_locked_seasons_cannot_be_predicted(matches):
     with pytest.raises(LockedSeasonError):
-        walk_forward_poisson(matches, seasons=["2324"])
+        walk_forward(matches, seasons=["2324"])
 
 
 def test_metrics_known_values():
@@ -63,3 +63,18 @@ def test_metrics_known_values():
     assert metrics.brier_per_match(probs, ["H", "H"]) == pytest.approx([0.38, 0.98])
     mean, lo, hi = metrics.paired_bootstrap(np.full(50, 0.1))
     assert (mean, lo, hi) == pytest.approx((0.1, 0.1, 0.1))
+
+
+def test_xg_target_mix_and_fallback():
+    from betsistem.model.predict import _targets
+    train = pd.DataFrame({"fthg": [2, 1], "ftag": [0, 1], "home_xg": [1.0, None], "away_xg": [0.4, None]})
+    hg, ag = _targets(train, 0.5)
+    assert list(hg) == [1.5, 1.0]  # xG yoksa gol
+    assert list(ag) == [0.2, 1.0]
+    assert list(_targets(train, 0.0)[0]) == [2.0, 1.0]
+
+
+def test_time_weight_changes_predictions(matches):
+    plain = walk_forward(matches, seasons=["2021"], config=ModelConfig(window_days=3650))
+    weighted = walk_forward(matches, seasons=["2021"], config=ModelConfig(window_days=3650, xi=0.01))
+    assert not np.allclose(plain.p_home, weighted.p_home)

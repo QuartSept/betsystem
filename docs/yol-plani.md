@@ -98,6 +98,7 @@ Basit model üç yönde geliştirilir; her değişiklik yalnızca model seçimi 
 - **Alt gruplar:** Belirli maç gruplarında avantaj aranacaksa grup önceden tanımlanır ve final sette ayrıca tutması gerekir. Sonradan bulunan alt gruplar kabul edilmez.
 - **Pazar:** Alt/üst 2.5, 1-X-2 sistemi doğrulandıktan sonra eklenir.
 - **Geçme şartı:** Olasılıklar iyi kalibre edilmiş ve her değişikliğin doğrulama dönemindeki katkısı ayrı ayrı ölçülmüş.
+- **Sonuç (18 Ekim 2026):** Ayarlar 2020/21–2021/22'de seçildi, 2022/23 iç kontrol. Dixon-Coles log-loss'u kötüleştirdi (+0,0013) ve elendi. Zaman ağırlığı (ξ = 0,001/gün, yarı ömür ≈ 2 yıl) ve xG (hedefin yarısı xG) tutuldu. Faz 3 modeli Faz 2'ye göre ayar sezonlarında 0,006, iç kontrolde 0,010 daha iyi. Tek tek adımların güven aralıkları çoğunlukla sıfırı içeriyor. ECE 0,0195 (Pinnacle erken 0,0242). Piyasaya göre fark +0,021 (%95 GA 0,011–0,032): model hâlâ Pinnacle erken oranından anlamlı ölçüde kötü. Ayrıntı: `reports/faz3_model.md`.
 
 ## Faz 4 – Geriye dönük test
 
@@ -182,6 +183,9 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 30 | N hedefi: δ = %1,5, α = 0,05 (tek yönlü), güç = 0,80, σ = 0,0856 (Pinnacle erken, 2019/20–2022/23, 1.520 maç) ile **N = 202** bağımsız bahis | Faz 0, Faz 1 |
 | 31 | Karar günü kuralı: Cuma–Pazartesi maçları için en yakın önceki Cuma, Salı–Perşembe maçları için en yakın önceki Salı. Model yalnızca karar gününden önce oynanmış maçları görür | Faz 2 |
 | 32 | Değerlendirmeye yalnızca modelin en az 380 eğitim maçı gördüğü maçlar girer; 2019/20 ısınma sezonu olarak kalır (2017/18–2018/19 eklenirse değerlendirmeye girer) | Faz 2 |
+| 33 | Faz 3 protokolü: ayarlar yalnızca 2020/21–2021/22'de seçilir, 2022/23 iç kontrol olarak raporlanır; her adımda önceki model de aday olur, iyileştirmeyen değişiklik elenir | Faz 3 |
+| 34 | Dixon-Coles elendi (ayar sezonlarında log-loss +0,0013) | Faz 3 |
+| 35 | Faz 3 modeli: Poisson, L2 = 1, tüm geçmiş, zaman ağırlığı ξ = 0,001/gün, hedef = 0,5·gol + 0,5·xG. Faz 4'e bu modelle girilir | Faz 3 |
 
 ## Riskler ve gerçekçi beklentiler
 
@@ -195,12 +199,12 @@ Bu tür sistemleri kuranların büyük çoğunluğu piyasayı uzun vadede yenemi
 - **Aşırı uyum:** Çok fazla değişken veya alt grup denemek, geçmişte harika, gelecekte kötü sonuç veren bir model üretir. Kilitli final set buna karşı korumadır.
 - **Bağımlılık riski:** Kayıpları kovalamamak için kasa ve kurallar önceden yazılır ve değiştirilmez.
 
-**Sonraki adım:** Faz 3 – Dixon-Coles, zaman ağırlığı ve xG.
+**Sonraki adım:** Faz 4 – geriye dönük test (eşik seçimi, CLV, ROI, kilitli final set).
 
 - [x] Faz 0: Kurallar (donduruldu)
 - [x] Faz 1: Veri altyapısı
 - [x] Faz 2: Basit model
-- [ ] Faz 3: Gelişmiş model
+- [x] Faz 3: Gelişmiş model
 - [ ] Faz 4: Geriye dönük test
 - [ ] Faz 5: Ek veriler
 - [ ] Faz 6: Canlı kâğıt testi

@@ -12,7 +12,7 @@ import pandas as pd
 from betsistem.config import BET_PRICE_BOOKMAKER, MODEL_SELECTION_SEASONS, season_label
 from betsistem.model import metrics
 from betsistem.model.market import market_prices, remove_margin
-from betsistem.model.predict import PoissonConfig, load_matches, save_predictions, walk_forward_poisson
+from betsistem.model.predict import ModelConfig, load_matches, save_predictions, walk_forward
 from betsistem.model.timeline import assert_unlocked
 from betsistem.report import markdown_table as _md
 
@@ -50,10 +50,10 @@ def _base_rates(matches: pd.DataFrame, preds: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def build_evaluation(conn: sqlite3.Connection, seasons=MODEL_SELECTION_SEASONS, config=PoissonConfig()):
+def build_evaluation(conn: sqlite3.Connection, seasons=MODEL_SELECTION_SEASONS, config=ModelConfig()):
     assert_unlocked(seasons)
     matches = load_matches(conn)
-    preds = walk_forward_poisson(matches, seasons, config)
+    preds = walk_forward(matches, seasons, config)
     save_predictions(conn, "poisson", config.key(), preds)
 
     eligible = preds[preds.train_matches >= MIN_TRAIN_MATCHES]
@@ -116,7 +116,7 @@ def _paired(base, aligned) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def render_report(conn: sqlite3.Connection, config=PoissonConfig()) -> str:
+def render_report(conn: sqlite3.Connection, config=ModelConfig()) -> str:
     base, aligned, n_pred, n_eligible = build_evaluation(conn, config=config)
     seasons = sorted(base.season.unique())
     calib = metrics.calibration_table(aligned[MODEL_NAME], base.ftr)
