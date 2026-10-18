@@ -57,8 +57,8 @@ CREATE TABLE IF NOT EXISTS odds (
     match_id         INTEGER NOT NULL REFERENCES matches(id),
     source           TEXT NOT NULL,
     bookmaker        TEXT NOT NULL,           -- kaynaktaki kod: 'PS', 'B365', 'Avg', 'Max', ...
-    market           TEXT NOT NULL,           -- '1X2'
-    outcome          TEXT NOT NULL CHECK (outcome IN ('H', 'D', 'A')),
+    market           TEXT NOT NULL,           -- '1X2' veya 'OU25' (2.5 alt/üst, karar #75)
+    outcome          TEXT NOT NULL CHECK (outcome IN ('H', 'D', 'A', 'O', 'U')),
     timing           TEXT NOT NULL CHECK (timing IN ('early', 'closing')),
     price            REAL NOT NULL CHECK (price > 1.0),
     recorded_at      TEXT,

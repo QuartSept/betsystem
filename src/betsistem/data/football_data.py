@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from betsistem.config import MARKET_1X2, RAW_DIR, season_of
+from betsistem.config import MARKET_1X2, MARKET_OU25, RAW_DIR, season_of
 from betsistem.data.db import get_or_create_team
 from betsistem.data.raw import FOOTBALL_DATA_SOURCE
 
@@ -21,6 +21,10 @@ ODDS_COLUMN = re.compile(
     r"^(?P<bookmaker>BbMx|BbAv|BMGM|B365|SKB|SK|BFE|BFD|1XB|BW|BV|CL|IW|PP|PS|WH|VC|Max|Avg|BF|LB|SJ|GB|BS|SB|SO|SY)"
     r"(?P<closing>C)?(?P<outcome>[HDA])$"
 )
+
+# 2.5 alt/üst sütunları: <kod>[C]<'>' | '<'>2.5. Pinnacle burada 'P' ile yazılır, 'PS' olarak saklanır.
+OU_COLUMN = re.compile(r"^(?P<bookmaker>BbMx|BbAv|B365|BFE|1XB|Max|Avg|P)(?P<closing>C)?(?P<side>[<>])2\.5$")
+OU_BOOKMAKER_ALIASES = {"P": "PS"}
 
 REQUIRED_COLUMNS = ("Div", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR")
 
@@ -41,7 +45,8 @@ class OddsColumn:
     column: str
     bookmaker: str
     timing: str  # 'early' | 'closing'
-    outcome: str  # 'H' | 'D' | 'A'
+    outcome: str  # 'H' | 'D' | 'A' | 'O' | 'U'
+    market: str = MARKET_1X2
 
 
 @dataclass
@@ -63,6 +68,18 @@ def parse_odds_columns(columns) -> list[OddsColumn]:
                     bookmaker=m["bookmaker"],
                     timing="closing" if m["closing"] else "early",
                     outcome=m["outcome"],
+                )
+            )
+            continue
+        m = OU_COLUMN.match(col)
+        if m:
+            parsed.append(
+                OddsColumn(
+                    column=col,
+                    bookmaker=OU_BOOKMAKER_ALIASES.get(m["bookmaker"], m["bookmaker"]),
+                    timing="closing" if m["closing"] else "early",
+                    outcome="O" if m["side"] == ">" else "U",
+                    market=MARKET_OU25,
                 )
             )
     return parsed
@@ -174,7 +191,7 @@ def load_football_data(conn: sqlite3.Connection, data_version_id: int, *, raw_di
                 conn.execute(
                     "INSERT INTO odds (match_id, source, bookmaker, market, outcome, timing, price,"
                     " recorded_at, data_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)",
-                    (match_id, FOOTBALL_DATA_SOURCE, oc.bookmaker, MARKET_1X2, oc.outcome, oc.timing, price,
+                    (match_id, FOOTBALL_DATA_SOURCE, oc.bookmaker, oc.market, oc.outcome, oc.timing, price,
                      data_version_id),
                 )
                 result.odds += 1

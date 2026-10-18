@@ -27,10 +27,26 @@ def _migrate_final_set_runs(conn: sqlite3.Connection) -> None:
         conn.execute("DROP TABLE final_set_runs")
 
 
+def _prepare_odds_migration(conn: sqlite3.Connection) -> bool:
+    """Eski odds tablosu alt/üst sonuçlarına (O/U) izin vermiyorsa kenara alır; satırlar sonra taşınır."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'odds'").fetchone()
+    if row is None or "'O'" in row[0]:
+        return False
+    conn.executescript("DROP INDEX IF EXISTS idx_odds_match; ALTER TABLE odds RENAME TO odds_old;")
+    return True
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     _migrate_final_set_runs(conn)
+    migrate_odds = _prepare_odds_migration(conn)
     schema = resources.files("betsistem.data").joinpath("schema.sql").read_text(encoding="utf-8")
     conn.executescript(schema)
+    if migrate_odds:
+        # Satırlar olduğu gibi taşınır; yabancı anahtarlar kopyalama sırasında yeniden denetlenmez.
+        conn.executescript(
+            "PRAGMA foreign_keys = OFF; INSERT INTO odds SELECT * FROM odds_old; DROP TABLE odds_old;"
+            " PRAGMA foreign_keys = ON;"
+        )
     conn.commit()
 
 

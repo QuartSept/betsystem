@@ -27,8 +27,10 @@ LEAGUES = {
     "T1": "Türkiye Süper Lig", "G1": "Yunanistan Super League",
 }
 
-# Karar #10: yalnızca 1-X-2.
+# Karar #10: yalnızca 1-X-2. Karar #75: alt/üst 2.5 tarihsel testte (10c).
 MARKET_1X2 = "1X2"
+MARKET_OU25 = "OU25"
+MARKET_OUTCOMES = {MARKET_1X2: ("H", "D", "A"), MARKET_OU25: ("O", "U")}  # O = 2.5 üst, U = 2.5 alt
 
 # Karar #24–#26: bahis fiyatı rolleri (football-data şirket kodları, erken oran).
 BET_PRICE_BOOKMAKER = "PS"  # ana fiyat; eksikse bahis yok (karar #27)
