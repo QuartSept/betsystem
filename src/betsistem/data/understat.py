@@ -110,8 +110,9 @@ def load_understat(conn: sqlite3.Connection, data_version_id: int, *, raw_dir: P
         for m, home_id, away_id in rows:
             match = conn.execute(
                 "SELECT id, match_date FROM matches"
-                " WHERE league = ? AND season = ? AND home_team_id = ? AND away_team_id = ?",
-                (version["league"], version["season"], home_id, away_id),
+                " WHERE league = ? AND season = ? AND home_team_id = ? AND away_team_id = ?"
+                " ORDER BY ABS(julianday(match_date) - julianday(?)) LIMIT 1",  # tekrar eden eşleşme (#90)
+                (version["league"], version["season"], home_id, away_id, m["datetime"][:10]),
             ).fetchone()
             if match is None:
                 result.missing_in_football_data.append(f"{m['h']['title']} - {m['a']['title']} ({m['datetime']})")

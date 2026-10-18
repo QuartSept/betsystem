@@ -135,3 +135,40 @@ def test_old_odds_table_is_migrated(tmp_path):
               " VALUES (1, 'football-data', 'PS', 'OU25', 'O', 'early', 1.9, 1)")
     assert c.execute("SELECT name FROM sqlite_master WHERE name = 'idx_odds_match'").fetchone()
     c.close()
+
+
+def test_repeated_pairing_gets_separate_legs(conn, tmp_path):
+    lines = FIXTURE.read_text(encoding="utf-8").splitlines()
+    header, first = lines[0], lines[1]
+    second = first.replace("05/08/2022", "20/01/2023").replace(",0,2,A,", ",3,1,H,")  # aynı eşleşme, ikinci maç
+    p = tmp_path / "rep.csv"
+    p.write_text("\n".join([header, first, second, lines[2]]) + "\n", encoding="utf-8")
+    vid = import_football_data(conn, "E0", "2223", p, raw_dir=tmp_path)
+    load_football_data(conn, vid, raw_dir=tmp_path)
+    load_football_data(conn, vid, raw_dir=tmp_path)  # yeniden yükleme çoğaltmaz
+    rows = conn.execute(
+        "SELECT leg, match_date, ftr FROM matches m JOIN teams h ON h.id = m.home_team_id"
+        " WHERE h.name = 'Crystal Palace' ORDER BY leg").fetchall()
+    assert [tuple(r) for r in rows] == [(1, "2022-08-05", "A"), (2, "2023-01-20", "H")]
+    assert conn.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 3
+
+
+def test_old_matches_table_gets_leg(tmp_path):
+    import sqlite3 as sq
+    path = tmp_path / "oldm.sqlite"
+    raw = sq.connect(path)
+    raw.executescript("""
+        CREATE TABLE matches (id INTEGER PRIMARY KEY, league TEXT NOT NULL, season TEXT NOT NULL,
+            match_date TEXT NOT NULL, kickoff_time TEXT, home_team_id INTEGER NOT NULL, away_team_id INTEGER NOT NULL,
+            fthg INTEGER, ftag INTEGER, ftr TEXT, hthg INTEGER, htag INTEGER, referee TEXT, home_shots INTEGER,
+            away_shots INTEGER, home_shots_on_target INTEGER, away_shots_on_target INTEGER,
+            data_version_id INTEGER NOT NULL, UNIQUE (league, season, home_team_id, away_team_id));
+        INSERT INTO matches (id, league, season, match_date, home_team_id, away_team_id, data_version_id)
+            VALUES (7, 'E0', '2223', '2022-08-05', 1, 2, 1);
+    """)
+    raw.commit(); raw.close()
+    c = connect(path)
+    init_db(c)
+    assert tuple(c.execute("SELECT id, leg FROM matches").fetchone()) == (7, 1)
+    assert c.execute("SELECT name FROM sqlite_master WHERE name = 'idx_matches_season'").fetchone()
+    c.close()

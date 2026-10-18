@@ -60,6 +60,9 @@ def main(argv=None) -> int:
 
     sub.add_parser("fixtures-log", help="Fikstür indirmeleri ve sha değişimleri (Faz 8.4)")
 
+    p_f11 = sub.add_parser("faz11-feasibility", help="Faz 11 ön fizibilite: pencerede yalnız erken fiyatla sayım (#85)")
+    p_f11.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz11_on_fizibilite.md")
+
     p_m = sub.add_parser("model-report", help="Faz 2: walk-forward Poisson tahmini ve piyasa karşılaştırma raporu")
     p_m.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz2_poisson.md")
 
@@ -186,6 +189,10 @@ def main(argv=None) -> int:
             print(f"Fikstür: sürüm #{fx.data_version_id}, sha {fx.sha12}, indirme {fx.downloaded_at}; {prev}")
             print("  maç sayısı: " + ", ".join(f"{k} {v}" for k, v in sorted(fx.matches_by_league.items())))
             print(f"  İddaa şablonunda fikstur_dosyasi = {fx.file_name}")
+        elif args.command == "faz11-feasibility":
+            from betsistem.asama2.faz11 import render_preliminary_feasibility
+            args.out.write_text(render_preliminary_feasibility(conn), encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out}")
         elif args.command == "fixtures-log":
             print(fixtures_log(conn).to_string(index=False))
     except (RawDataError, UnknownTeamError, PermissionError, backtest_run.FinalSetAlreadyOpened,

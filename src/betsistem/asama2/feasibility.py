@@ -58,30 +58,38 @@ def _sigma_proxy(price: np.ndarray, fair_close: np.ndarray, seed: int = SEED) ->
     return price[rows, j] * fair_close[rows, j] - 1.0
 
 
-def _n(values: list[np.ndarray]) -> tuple[float, int]:
+def _n(values: list[np.ndarray], alpha: float = ALPHA_FAZ10) -> tuple[float, int]:
     sigma = float(np.concatenate(values).std(ddof=1))
-    return sigma, required_n(sigma, DELTA, alpha=ALPHA_FAZ10, power=POWER)
+    return sigma, required_n(sigma, DELTA, alpha=alpha, power=POWER)
 
 
-def feasibility_10a(conn, leagues=("E0", "T1"), seasons=MODELLESS_SEASONS) -> Feasibility:
+def feasibility_10a(conn, leagues=("E0", "T1"), seasons=MODELLESS_SEASONS, alpha: float = ALPHA_FAZ10) -> Feasibility:
     """10a: o_B365 / o_adil (marjsız Avg erken) oranı en yüksek sonuç; oran > 1 + k ise bahis."""
     assert_unlocked(seasons)
     best, sig, total = [], [], 0
+    notes = []
     for lg in leagues:
-        b365 = _snapshot(conn, "B365", lg, "early")
-        avg = _snapshot(conn, "Avg", lg, "early")
-        ps_close = _snapshot(conn, "PS", lg, "closing")
+        try:
+            b365 = _snapshot(conn, "B365", lg, "early")
+            avg = _snapshot(conn, "Avg", lg, "early")
+            ps_close = _snapshot(conn, "PS", lg, "closing")
+        except KeyError:
+            notes.append(f"{lg}: seçim döneminde B365/Avg/PS oranı yok, σ'ya katılmadı")
+            continue
         ids = b365.index.intersection(avg.index).intersection(ps_close.index)
         ids = ids[ids.get_level_values("season").isin(seasons)]
+        if len(ids) == 0:
+            notes.append(f"{lg}: seçim döneminde ortak maç yok")
+            continue
         cols = ["H", "D", "A"]
         ratio = b365.loc[ids, cols].to_numpy() * remove_margin(avg.loc[ids])[cols].to_numpy()
         best.append(ratio.max(axis=1))
         sig.append(_sigma_proxy(b365.loc[ids, cols].to_numpy(), remove_margin(ps_close.loc[ids])[cols].to_numpy()))
         total += len(ids)
     best_all = np.concatenate(best)
-    sigma, n = _n(sig)
+    sigma, n = _n(sig, alpha)
     return Feasibility("10a", tuple(leagues), tuple(seasons), total, sigma, n,
-                       {k: int((best_all > 1 + k).sum()) for k in K_GRID_10A})
+                       {k: int((best_all > 1 + k).sum()) for k in K_GRID_10A}, notes=notes)
 
 
 def _over_probability(lam_total: np.ndarray) -> np.ndarray:

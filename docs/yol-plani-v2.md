@@ -144,11 +144,12 @@ Faz 10'u geçen her fikir, hiç kullanılmamış bir dönemde bir kez ve ayar de
 | Referans (CLV) | Marjı çıkarılmış BFE kapanışı; ligde BFE doluluğu %90'ın altındaysa marjsız piyasa ortalaması kapanışı |
 | Bahis fiyatı | 10a türü kurallarda yumuşak şirketin erken oranı; model tabanlı kurallarda BFE erken oranı (aynı kaynaktan CLV, #24'ün gerekçesiyle) |
 | Borsa komisyonu | CLV komisyonsuz hesaplanır; komisyon sonrası beklenen değer ayrıca raporlanır |
-| N | Formül aynı; σ bu referans ve fiyatla, yalnızca 2025/26'nın ilk yarısının fiyatlarından hesaplanır (sonuçlar kullanılmaz). α = 0,05 / Faz 11'e giren fikir sayısı |
-| Fizibilite | Her fikir için #71'deki kontrol pencerede yapılır |
+| N | Formül aynı; α = 0,05 / Faz 11'e giren fikir sayısı. σ için #89'daki öneri (pencere dışı, seçim dönemi vekili) onay bekliyor |
+| Fizibilite | Her fikir için #71'deki kontrol; pencerede yalnızca erken fiyatlarla sayım, izin gerektirmez (#85). Kapsam #86'daki sırayla belirlenir |
 | Tek seferlik çalıştırma | Her fikir için bir kez; çalıştırma veritabanına kaydedilir, kod ikinci çalıştırmayı reddeder (#42'deki final set mekanizması gibi) |
-| Geçme şartı | Faz 4 şartı (#42), yukarıdaki α ile |
+| Geçme şartı | Faz 4 şartı (#42); 10a için CLV oransal ve Shin yöntemiyle, ikisinin de tek yönlü alt sınırı > 0, α = 0,05 (#84). Power bilgi için |
 
+- Kilit kapsamı (#87): Faz 12 muaf; pencerede B365/adil oranı, kural çıktıları ve Faz 12 dışı sonuç/CLV istatistikleri kilitli. Panel gelecek maçlar için model olasılığı gösterebilir.
 - Pinnacle bu pencerede kullanılmaz: 2025/26'nın ortasında kesildiği için (doluluk %55) pencerenin tamamı için tutarlı bir referans değildir.
 - Faz 11'i geçen fikir, Faz 12'de modelsiz kuralın yanında ikinci bir kural olarak izlenir; kararları ayrı raporlanır.
 
@@ -160,13 +161,13 @@ Asıl sınav: gerçekten oynanabilecek oranlarla, gerçek zamanda ve henüz para
 | --- | --- |
 | Karar anı | Cuma (hafta içi maçları için Salı) football-data fikstür dosyasının o haftaki güncellemesi (#6'nın canlı karşılığı) |
 | Referans anı ve kayıt (#76) | Referans, o haftanın fikstür dosyasının güncellendikten sonraki ilk indirmesidir; dosyanın sha'sı ve indirme zamanı kaydedilir. İddaa oranları bu indirme zamanından en çok 2 saat önce veya sonra kaydedilir. football-data'nın oranları topladığı kesin saat bilinmediği için referansın gerçek yaşı raporda belirsizlik olarak belirtilir |
-| Adil olasılık | Marjsız piyasa ortalaması erken; BFE varsa duyarlılık olarak o da |
+| Adil olasılık | Avg erkenden **Shin** yöntemiyle marjı çıkarılmış olasılık (#88); BFE varsa duyarlılık olarak o da |
 | Bahis kuralı | EV = p\_adil × o\_iddaa − 1 > e; yalnızca MBS 1 maçlar; maç başına en yüksek EV'li tek sonuç |
 | EV eşiği e (#76) | Faz 8 kayıtlarından, yalnızca fiyatlarla öngörülen sezonluk bahis sayısına göre seçilir: {%2; %1; %0} içinden, öngörülen bahis sayısının N'ye en çok iki sezonda ulaştığı en büyük e. Hiçbiri ulaşmıyorsa Faz 12 test olarak yapılmaz; panel gösterici olarak kalır |
 | CLV | o\_iddaa × p\_adil\_kapanış − 1; kapanış referansı BFE (doluluk ≥ %90) yoksa marjsız piyasa ortalaması |
 | N | Formül aynı (δ = %1,5, α = 0,05); σ Faz 8 kayıtlarından hesaplanır ve Faz 12 başlarken sabitlenir |
 | Süre | e seçimiyle birlikte sabitlenir: N bahise kadar, en çok bir veya iki sezon. Bu sürede N'ye ulaşılmazsa sonuç "belirsiz" sayılır, para kullanılmaz |
-| Geçme şartı | Faz 4 şartı (#42); ayrıca ROI ve lig bazında sonuçlar raporlanır |
+| Geçme şartı | Faz 4 şartı (#42); CLV oransal ve Shin yöntemiyle, ikisinin de tek yönlü alt sınırı > 0 (#88). Ayrıca ROI ve lig bazında sonuçlar raporlanır |
 
 **Neden e seçimi bir kurala bağlandı:** Aşama 1'deki B365 verisi, adil fiyatı %2 aşan sonuçların Premier League'de maçların yalnızca yaklaşık %5'inde görüldüğünü gösteriyor. İddaa'nın marjı B365'ten yüksekse oran daha da düşer. Sabit %2 eşiği ve bir sezonluk süreyle Faz 12'nin "belirsiz" bitmesi neredeyse kesin olurdu.
 
@@ -231,6 +232,13 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 81 | Faz 11 penceresi şimdiden kilitli: 2025/26 ve 2026/27 sezonlarının tamamı (pencere 31 Aralık 2026'da bitse de ihtiyaten tüm sezon). Sonuç, CLV veya kural çıktısı üreten kod yolları (`assert_unlocked`) Faz 11 izni ister; izin fikir başına bir kez `faz11_runs`'a kaydedilerek verilir ve ikinci açılışı kod reddeder. 8.5 için yalnızca doluluk ölçülür (`window_coverage`); kalite raporundaki Pinnacle marj ve hareket istatistikleri pencereyi dışarıda bırakır | Faz 8, 11 |
 | 82 | #71'in ifadesi düzeltildi: fizibilite, "kapanışa bakmadan" değil, "kuralın seçtiği bahislerin CLV'sine ve sonuçlara bakmadan" yapılır; σ vekili kapanış oranını kullanır | Fizibilite |
 | 83 | Faz 10 testleri birer kez çalıştırıldı (2026-10-18 17:24 UTC, çalıştırıcı c41520b, sonuçlar 5e1e824); üçü de raporlandı. Çalıştırma `faz10_runs`'a kayıtlı, ikinci çalıştırmayı kod reddeder. Eşik aynı dönemde seçildiği için geçen sonuç iyimser olabilir (10a'da tek fizibil eşik k = 0 olduğundan seçim etkisi sınırlı; asıl risk #78'deki marj yöntemi duyarlılığı). Faz 11'e kadar hiçbir ayar değiştirilmez; sonuçlar planlamaya getirilir | Faz 10 |
+| 84 | Faz 11 / 10a geçme şartı: kural aynen kalır (#83; p_adil Avg erkenden oransal yöntemle, k = 0). CLV hem oransal hem Shin yöntemiyle marjı çıkarılmış kapanışa göre hesaplanır; ikisinin de tek yönlü alt sınırı > 0 olmalı. α = 0,05 (Faz 11'e tek fikir giriyor). Power yöntemi yalnızca bilgi için raporlanır | Faz 11 |
+| 85 | #81'e istisna: pencerede yalnızca erken fiyatlarla bahis sayısını saymak (sonuç, kapanış değeri ve CLV olmadan) Faz 11 izni gerektirmez ve izni tüketmez. Çıktı yalnızca sayıdır; oranların kendisi raporlanmaz | Faz 11 |
+| 86 | Faz 11 kapsamı (koşullu, şimdiden sabit): önce E0 + T1 için fizibilite yapılır; bahis sayısı N'ye ulaşırsa test E0 + T1 ile yapılır. Ulaşmazsa, pencerede B365 erken, Avg erken ve BFE kapanış doluluğu %90 ve üstü olan tüm football-data ligleriyle yapılır. Bu da yetmezse 10a "yetersiz güç" olarak kapanır ve mekanizma doğrudan Faz 12'de sınanır. Pencerenin bitişi değişmez (#65) | Faz 11 |
+| 87 | Kilidin kapsamı: Faz 12 kilitten muaftır. Pencerede kilitli kalanlar: B365'in adil fiyata oranı, bu oranın ürettiği kural çıktıları ve Faz 12 dışındaki tüm sonuç ve CLV istatistikleri. Panel gelecek maçlar için model olasılığını gösterebilir; pencere maçlarında model performansını göstermez | Faz 9, 11, 12 |
+| 88 | Faz 12 kuralında p_adil, Avg erkenden Shin yöntemiyle hesaplanır (10a'daki oransal yöntem yanılsaması riskine karşı). Geçme şartı Faz 11'deki gibi: CLV oransal ve Shin yöntemiyle hesaplanır, ikisinin de tek yönlü alt sınırı > 0 | Faz 12 |
+| 89 | **Öneri, proje sahibinin onayını bekliyor.** Faz 11'in N'si için σ, pencere dışından alınır: 10a kuralının fiyatı (B365 erken) ve seçim dönemindeki Pinnacle kapanışı vekiliyle, 2019/20–2022/23, kapsamdaki liglerde. Gerekçe: v2'deki "σ, pencerenin ilk yarısının fiyatlarından" ifadesi kapanış oranı gerektiriyor; bu, #85 ve #87'ye göre izinsiz hesaplanamaz ve #86'daki sıra (önce fizibilite, sonra kapsam) işlemez. α = 0,05 (#84) | Faz 11 |
+| 90 | Veri düzeltmesi: maç anahtarı (lig, sezon, ev, deplasman) aynı eşleşmenin sezonda tekrar oynandığı liglerde ikinci maçı birincinin üzerine yazıyordu (İskoçya SC0–SC3 ve Yunanistan G1 tüm sezonlar, Belçika B1 yalnızca 2025/26 play-off'ları; toplam 1.828 maç). Anahtara eşleşmenin sezondaki sırası (`leg`) eklendi, veriler yeniden yüklendi. Aşama 1'de kullanılan E0, T1, B1 ve N1 (2019/20–2022/23) verisi etkilenmemişti. Lig taraması (#47) aynı kuralla düzeltilmiş veriyle yeniden hesaplandı: seçim değişmedi (B1, N1); G1 artık uygun ama bilgi kazancı 0,0068 ile üçüncü. Faz 11 ön fizibilitesi (#85, #86, #89 önerisiyle): E0 + T1 projeksiyonu 89 bahis < N = 254; 22 uygun lig birlikte projeksiyon 971 ≥ N = 252 → kapsam ön sonucu tüm uygun ligler (`reports/faz11_on_fizibilite.md`) | Veri, Faz 11 |
 
 ## İlk adımlar
 

@@ -106,7 +106,7 @@ def read_football_data_csv(path: Path) -> pd.DataFrame:
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"{path} içinde eksik sütunlar: {missing}")
-    return df.reset_index(drop=True)
+    return df.reset_index(drop=True).copy()  # parçalı DataFrame uyarısını önler
 
 
 def _int_or_none(value):
@@ -141,7 +141,11 @@ def load_football_data(conn: sqlite3.Connection, data_version_id: int, *, raw_di
 
     with conn:
         # itertuples geçersiz Python adlarını (B365>2.5 gibi) yeniden adlandırır; sütun adıyla erişim için dict.
-        for row in df.itertuples(index=False):
+        # Aynı eşleşmenin sezondaki sırası (karar #90): tarih sırasıyla 1, 2, ...
+        order = pd.to_datetime(df["Date"].map(parse_date))
+        legs = (df.assign(_d=order).sort_values("_d", kind="stable")
+                .groupby(["HomeTeam", "AwayTeam"]).cumcount() + 1).reindex(df.index)
+        for leg, row in zip(legs, df.itertuples(index=False)):
             rec = dict(zip(df.columns, row))
             home_id = get_or_create_team(conn, FOOTBALL_DATA_SOURCE, str(rec["HomeTeam"]).strip())
             away_id = get_or_create_team(conn, FOOTBALL_DATA_SOURCE, str(rec["AwayTeam"]).strip())
@@ -157,6 +161,7 @@ def load_football_data(conn: sqlite3.Connection, data_version_id: int, *, raw_di
                 "ftag": _int_or_none(rec["FTAG"]),
                 "ftr": _str_or_none(rec["FTR"]),
                 "data_version_id": data_version_id,
+                "leg": int(leg),
             }
             for db_col, csv_col in MATCH_STAT_COLUMNS.items():
                 raw = rec.get(csv_col)
@@ -165,11 +170,12 @@ def load_football_data(conn: sqlite3.Connection, data_version_id: int, *, raw_di
             cols = ", ".join(values)
             placeholders = ", ".join("?" for _ in values)
             updates = ", ".join(
-                f"{c} = excluded.{c}" for c in values if c not in ("league", "season", "home_team_id", "away_team_id")
+                f"{c} = excluded.{c}" for c in values
+                if c not in ("league", "season", "home_team_id", "away_team_id", "leg")
             )
             match_id = conn.execute(
                 f"INSERT INTO matches ({cols}) VALUES ({placeholders})"
-                f" ON CONFLICT (league, season, home_team_id, away_team_id) DO UPDATE SET {updates}"
+                f" ON CONFLICT (league, season, home_team_id, away_team_id, leg) DO UPDATE SET {updates}"
                 " RETURNING id",
                 tuple(values.values()),
             ).fetchone()["id"]

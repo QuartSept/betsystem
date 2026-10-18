@@ -6,7 +6,9 @@ p_i = (1/o_i) / Σ(1/o). Model bu olasılıklarla karşılaştırılır.
 
 import sqlite3
 
+import numpy as np
 import pandas as pd
+from scipy.optimize import brentq
 
 from betsistem.config import MARKET_1X2, MARKET_OUTCOMES
 
@@ -18,6 +20,30 @@ def remove_margin(prices: pd.DataFrame, outcomes=OUTCOMES) -> pd.DataFrame:
     inv = 1.0 / prices[list(outcomes)]
     out = inv.div(inv.sum(axis=1), axis=0)
     out["overround"] = inv.sum(axis=1)
+    return out
+
+
+def shin_probabilities(odds) -> np.ndarray:
+    """Shin (1993) yöntemiyle marjsız olasılıklar: içeriden bilgili bahis payı z ile favori–uzak ihtimal
+    eğilimini hesaba katar. p_i = (√(z² + 4(1 − z)π_i²/S) − z) / (2(1 − z)), π_i = 1/o_i, S = Σπ_i; Σp_i = 1."""
+    pi = 1.0 / np.asarray(odds, dtype=float)
+    s = pi.sum()
+    if s <= 1.0:
+        return pi / s  # marj yoksa oransal ile aynı
+
+    def p_of(z):
+        return (np.sqrt(z**2 + 4 * (1 - z) * pi**2 / s) - z) / (2 * (1 - z))
+
+    z = brentq(lambda z: p_of(z).sum() - 1.0, 0.0, 0.5)
+    return p_of(z)
+
+
+def remove_margin_shin(prices: pd.DataFrame, outcomes=OUTCOMES) -> pd.DataFrame:
+    """remove_margin ile aynı biçimde, Shin yöntemiyle (karar #84, #88)."""
+    cols = list(outcomes)
+    probs = np.vstack([shin_probabilities(row) for row in prices[cols].to_numpy()]) if len(prices) else         np.empty((0, len(cols)))
+    out = pd.DataFrame(probs, index=prices.index, columns=cols)
+    out["overround"] = (1.0 / prices[cols]).sum(axis=1)
     return out
 
 

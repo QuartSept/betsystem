@@ -45,11 +45,36 @@ def _migrate_iddaa_log(conn: sqlite3.Connection) -> None:
         conn.execute("DROP TABLE iddaa_odds_log")
 
 
+def _migrate_matches_leg(conn: sqlite3.Connection, schema: str) -> None:
+    """matches tablosuna leg sütunu ve (lig, sezon, ev, deplasman, leg) anahtarı ekler (karar #90).
+
+    Güvenli SQLite yöntemi: yeni tablo oluştur, kopyala, eskiyi sil, yeniyi yeniden adlandır. id'ler korunur;
+    eski satırların hepsi leg = 1 olur (eski anahtar tekrar eden eşleşmeyi zaten tek satıra indiriyordu).
+    """
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(matches)")]
+    if not cols or "leg" in cols:
+        return
+    start = schema.index("CREATE TABLE IF NOT EXISTS matches (")
+    end = schema.index("\n);", start) + 3  # yorumlardaki ');' ile karışmasın
+    create_new = schema[start:end].replace("CREATE TABLE IF NOT EXISTS matches (", "CREATE TABLE matches_new (")
+    col_list = ", ".join(cols)
+    conn.executescript(
+        "PRAGMA foreign_keys = OFF;"
+        "DROP INDEX IF EXISTS idx_matches_season;"
+        f"{create_new};"
+        f"INSERT INTO matches_new ({col_list}, leg) SELECT {col_list}, 1 FROM matches;"
+        "DROP TABLE matches;"
+        "ALTER TABLE matches_new RENAME TO matches;"
+        "PRAGMA foreign_keys = ON;"
+    )
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     _migrate_final_set_runs(conn)
     _migrate_iddaa_log(conn)
     migrate_odds = _prepare_odds_migration(conn)
     schema = resources.files("betsistem.data").joinpath("schema.sql").read_text(encoding="utf-8")
+    _migrate_matches_leg(conn, schema)
     conn.executescript(schema)
     if migrate_odds:
         # Satırlar olduğu gibi taşınır; yabancı anahtarlar kopyalama sırasında yeniden denetlenmez.

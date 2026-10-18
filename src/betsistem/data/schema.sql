@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS matches (
     home_shots_on_target INTEGER,
     away_shots_on_target INTEGER,
     data_version_id  INTEGER NOT NULL REFERENCES data_versions(id),
-    UNIQUE (league, season, home_team_id, away_team_id)
+    -- Aynı ev/deplasman eşleşmesinin sezondaki sırası (1, 2, ...). İskoçya'da dört karşılaşma ve play-off'lu
+    -- liglerde aynı eşleşme bir sezonda birden çok kez oynanır (karar #90).
+    leg              INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (league, season, home_team_id, away_team_id, leg)
 );
 
 -- Uzun biçim oran tablosu: satır başına tek fiyat.
