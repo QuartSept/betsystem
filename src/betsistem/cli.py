@@ -10,6 +10,7 @@ from betsistem.data.football_data import load_football_data
 from betsistem.data.iddaa import import_iddaa
 from betsistem.backtest import sample_size
 from betsistem.data import quality
+from betsistem.model import evaluation
 from betsistem.data.raw import RawDataError, download_football_data, import_football_data
 from betsistem.data.understat import fetch_understat, load_understat
 
@@ -50,6 +51,9 @@ def main(argv=None) -> int:
     p_iddaa = sub.add_parser("import-iddaa", help="Elle tutulan İddaa oran CSV'sini ekle (templates/iddaa_oranlari.csv)")
     p_iddaa.add_argument("file", type=Path)
 
+    p_m = sub.add_parser("model-report", help="Faz 2: walk-forward Poisson tahmini ve piyasa karşılaştırma raporu")
+    p_m.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz2_poisson.md")
+
     args = parser.parse_args(argv)
     conn = connect(args.db)
     init_db(conn)
@@ -84,6 +88,10 @@ def main(argv=None) -> int:
         elif args.command == "sample-size":
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(sample_size.render_report(conn), encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out}")
+        elif args.command == "model-report":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(evaluation.render_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)

@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from betsistem.config import BET_PRICE_BOOKMAKER, is_final_test_season, season_label
+from betsistem.model.market import fair_probabilities
+from betsistem.report import markdown_table as _md
 
 # Bir maçta 1-X-2 olasılıkları toplamı bu aralığın dışındaysa şüpheli sayılır.
 OVERROUND_MIN, OVERROUND_MAX = 1.0, 1.10
@@ -93,21 +95,6 @@ def bet_price_missing(conn: sqlite3.Connection, bookmaker: str = BET_PRICE_BOOKM
     return summary, missing[["season", "match_date", "home", "away", "missing"]]
 
 
-def fair_probabilities(conn: sqlite3.Connection, bookmaker: str) -> pd.DataFrame:
-    """Marjı oransal yöntemle çıkarılmış olasılıklar: p_i = (1/o_i) / sum(1/o)."""
-    df = pd.read_sql(
-        "SELECT o.match_id, m.season, o.timing, o.outcome, o.price FROM odds o JOIN matches m ON m.id = o.match_id"
-        " WHERE o.market = '1X2' AND o.bookmaker = ?",
-        conn,
-        params=(bookmaker,),
-    )
-    wide = df.pivot_table(index=["match_id", "season", "timing"], columns="outcome", values="price").dropna()
-    inv = 1.0 / wide[["H", "D", "A"]]
-    out = inv.div(inv.sum(axis=1), axis=0)
-    out["overround"] = inv.sum(axis=1)
-    return out.reset_index()
-
-
 def pinnacle_consistency(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.DataFrame]:
     ps = fair_probabilities(conn, "PS")
     if ps.empty:
@@ -154,16 +141,6 @@ def data_versions(conn: sqlite3.Connection) -> pd.DataFrame:
         " FROM data_versions ORDER BY source, season, id",
         conn,
     )
-
-
-def _md(df: pd.DataFrame) -> str:
-    if df.empty:
-        return "_Veri yok._"
-    cols = [str(c) for c in df.columns]
-    lines = ["| " + " | ".join(cols) + " |", "| " + " | ".join("---" for _ in cols) + " |"]
-    for row in df.itertuples(index=False):
-        lines.append("| " + " | ".join("" if pd.isna(v) else str(v) for v in row) + " |")
-    return "\n".join(lines)
 
 
 def render_report(conn: sqlite3.Connection) -> str:

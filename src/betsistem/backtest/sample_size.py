@@ -28,7 +28,7 @@ from betsistem.config import (
     SENSITIVITY_BOOKMAKERS,
     UPPER_BOUND_BOOKMAKER,
 )
-from betsistem.data.quality import fair_probabilities
+from betsistem.model.market import fair_probabilities
 
 ALPHA = 0.05  # tek yönlü: CLV > 0
 POWER = 0.80

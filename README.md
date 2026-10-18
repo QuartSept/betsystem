@@ -29,6 +29,9 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 .venv\Scripts\betsistem quality-report
 .venv\Scripts\betsistem sample-size
 
+# Faz 2: walk-forward Poisson ve piyasa karşılaştırması (reports/faz2_poisson.md)
+.venv\Scripts\betsistem model-report
+
 # İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
 .venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
 ```
@@ -58,6 +61,6 @@ dosyayı (`https://www.football-data.co.uk/mmz4281/2223/E0.csv`) elle edinip `im
 ## Yapı
 
 - `src/betsistem/data/`: ham veri edinme, şema, yükleyiciler
-- `src/betsistem/model/`: modeller (Faz 2+)
+- `src/betsistem/model/`: piyasa olasılıkları, karar anı, Poisson modeli, walk-forward, metrikler
 - `src/betsistem/backtest/`: geriye dönük test (Faz 4)
 - `notebooks/`: yalnızca keşif ve raporlama

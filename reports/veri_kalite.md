@@ -1,6 +1,6 @@
 # Veri kalite raporu
 
-Oluşturulma: 2026-10-18T11:51:12+00:00 (UTC). Bu rapor yalnızca veri kalitesine bakar; sonuç veya getiri içermez.
+Oluşturulma: 2026-10-18T15:05:58+00:00 (UTC). Bu rapor yalnızca veri kalitesine bakar; sonuç veya getiri içermez.
 
 ## Sezonlar
 

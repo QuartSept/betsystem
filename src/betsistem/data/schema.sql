@@ -105,3 +105,20 @@ BEGIN SELECT RAISE(ABORT, 'iddaa_odds_log yalnızca eklenir'); END;
 
 CREATE TRIGGER IF NOT EXISTS iddaa_odds_log_no_delete BEFORE DELETE ON iddaa_odds_log
 BEGIN SELECT RAISE(ABORT, 'iddaa_odds_log yalnızca eklenir'); END;
+
+-- Model tahminleri. config, modelin tüm ayarlarını içeren JSON'dur; aynı ayarla yeniden
+-- üretilen tahmin eskisinin yerine geçer (üretim deterministik).
+CREATE TABLE IF NOT EXISTS predictions (
+    model            TEXT NOT NULL,           -- 'poisson'
+    config           TEXT NOT NULL,
+    match_id         INTEGER NOT NULL REFERENCES matches(id),
+    decision_date    TEXT NOT NULL,           -- modelin veri gördüğü son gün (hariç)
+    train_matches    INTEGER NOT NULL,
+    p_home           REAL NOT NULL,
+    p_draw           REAL NOT NULL,
+    p_away           REAL NOT NULL,
+    lambda_home      REAL,
+    lambda_away      REAL,
+    created_at       TEXT NOT NULL,
+    PRIMARY KEY (model, config, match_id)
+);

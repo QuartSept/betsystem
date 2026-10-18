@@ -85,6 +85,7 @@ Prototip sezonu model seçimi döneminden seçildi. Kilitli final sezonlarında 
 - **Ölçüm:** Aynı maçlarda log-loss, Brier skoru ve kalibrasyon.
 - **Beklenti:** Piyasa muhtemelen daha iyi çıkacak. Bu normal; amaç aradaki farkı sayıyla görmek.
 - **Geçme şartı:** Ölçüm altyapısı çalışıyor, modelin piyasaya göre konumu biliniyor.
+- **Sonuç (18 Ekim 2026):** 2020/21–2022/23'teki 1.140 maçta Poisson log-loss 0,998, Pinnacle erken 0,970, Pinnacle kapanış 0,965. Model piyasadan anlamlı ölçüde kötü (fark +0,029, %95 GA 0,017–0,040), geçmiş sıklık tahmininden anlamlı ölçüde iyi (−0,070). Uç olasılıklarda aşırı güvenli. Ayrıntı: `reports/faz2_poisson.md`.
 
 ## Faz 3 – Gelişmiş model
 
@@ -179,6 +180,8 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 28 | N, Pinnacle erken fiyatı üzerinden model seçimi döneminde (2019/20–2022/23) hesaplanır | Faz 1 |
 | 29 | Karar #23 güncellendi: Claude kodu doğrudan yazar | Genel |
 | 30 | N hedefi: δ = %1,5, α = 0,05 (tek yönlü), güç = 0,80, σ = 0,0856 (Pinnacle erken, 2019/20–2022/23, 1.520 maç) ile **N = 202** bağımsız bahis | Faz 0, Faz 1 |
+| 31 | Karar günü kuralı: Cuma–Pazartesi maçları için en yakın önceki Cuma, Salı–Perşembe maçları için en yakın önceki Salı. Model yalnızca karar gününden önce oynanmış maçları görür | Faz 2 |
+| 32 | Değerlendirmeye yalnızca modelin en az 380 eğitim maçı gördüğü maçlar girer; 2019/20 ısınma sezonu olarak kalır (2017/18–2018/19 eklenirse değerlendirmeye girer) | Faz 2 |
 
 ## Riskler ve gerçekçi beklentiler
 
@@ -192,11 +195,11 @@ Bu tür sistemleri kuranların büyük çoğunluğu piyasayı uzun vadede yenemi
 - **Aşırı uyum:** Çok fazla değişken veya alt grup denemek, geçmişte harika, gelecekte kötü sonuç veren bir model üretir. Kilitli final set buna karşı korumadır.
 - **Bağımlılık riski:** Kayıpları kovalamamak için kasa ve kurallar önceden yazılır ve değiştirilmez.
 
-**Sonraki adım:** Faz 2 – Poisson modeli ve piyasaya karşı ölçüm altyapısı.
+**Sonraki adım:** Faz 3 – Dixon-Coles, zaman ağırlığı ve xG.
 
 - [x] Faz 0: Kurallar (donduruldu)
 - [x] Faz 1: Veri altyapısı
-- [ ] Faz 2: Basit model
+- [x] Faz 2: Basit model
 - [ ] Faz 3: Gelişmiş model
 - [ ] Faz 4: Geriye dönük test
 - [ ] Faz 5: Ek veriler
