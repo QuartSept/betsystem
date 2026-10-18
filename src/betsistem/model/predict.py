@@ -80,9 +80,13 @@ def _targets(train: pd.DataFrame, xg_weight: float) -> tuple[np.ndarray, np.ndar
 
 
 def walk_forward(
-    matches: pd.DataFrame, seasons=MODEL_SELECTION_SEASONS, config: ModelConfig = ModelConfig()
+    matches: pd.DataFrame,
+    seasons=MODEL_SELECTION_SEASONS,
+    config: ModelConfig = ModelConfig(),
+    *,
+    final_set_token=None,
 ) -> pd.DataFrame:
-    assert_unlocked(seasons)
+    assert_unlocked(seasons, final_set_token)
     matches = matches.join(promoted_flags(matches))
     played = matches.dropna(subset=["fthg", "ftag"])
     targets = matches[matches.season.isin(seasons)].copy()

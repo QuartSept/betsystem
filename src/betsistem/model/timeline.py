@@ -25,7 +25,15 @@ def decision_date(match_date: date) -> date:
     return match_date - timedelta(days=(match_date.weekday() - target) % 7)
 
 
-def assert_unlocked(seasons) -> None:
+class FinalSetToken:
+    """Kilitli final setine tek seferlik erişim izni. Yalnızca backtest.final.open_final_set üretir;
+    o fonksiyon açılışı veritabanına kalıcı olarak kaydeder ve ikinci açılışı reddeder (karar #42)."""
+
+    def __init__(self, run_id: int):
+        self.run_id = run_id
+
+
+def assert_unlocked(seasons, token: FinalSetToken | None = None) -> None:
     locked = sorted(set(seasons) & set(FINAL_TEST_SEASONS))
-    if locked:
+    if locked and not isinstance(token, FinalSetToken):
         raise LockedSeasonError(f"Kilitli final sezonları kullanılamaz: {locked}")

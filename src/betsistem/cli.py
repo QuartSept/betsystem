@@ -8,6 +8,7 @@ from betsistem.config import DB_PATH, LEAGUES, PROJECT_ROOT, PROTOTYPE_SEASON, s
 from betsistem.data.db import UnknownTeamError, connect, init_db
 from betsistem.data.football_data import load_football_data
 from betsistem.data.iddaa import import_iddaa
+from betsistem.backtest import run as backtest_run
 from betsistem.backtest import sample_size
 from betsistem.data import quality
 from betsistem.model import evaluation, experiments
@@ -60,6 +61,13 @@ def main(argv=None) -> int:
     p_pr = sub.add_parser("promoted-report", help="Karar #36: yeni çıkan takım ayarını Faz 3 protokolüyle test et")
     p_pr.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz3_yeni_cikan.md")
 
+    p_bs = sub.add_parser("backtest-select", help="Faz 4: model seçimi döneminde backtest ve eşik seçimi")
+    p_bs.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz4_secim.md")
+
+    p_bf = sub.add_parser("backtest-final", help="Faz 4: kilitli final seti TEK SEFER çalıştır (geri alınamaz)")
+    p_bf.add_argument("--confirm", required=True, help=f"Onay ifadesi: {backtest_run.CONFIRM_PHRASE!r}")
+    p_bf.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz4_final.md")
+
     args = parser.parse_args(argv)
     conn = connect(args.db)
     init_db(conn)
@@ -107,10 +115,19 @@ def main(argv=None) -> int:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(experiments.render_promoted_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
+        elif args.command == "backtest-select":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(backtest_run.selection_report(conn), encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out} (seçim: {backtest_run.SELECTION_FILE})")
+        elif args.command == "backtest-final":
+            report = backtest_run.final_report(conn, args.confirm)
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(report, encoding="utf-8")
+            print(f"Rapor yazıldı: {args.out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)
             print(f"İddaa: {res.added} yeni kayıt, {res.already_present} zaten vardı")
-    except (RawDataError, UnknownTeamError) as exc:
+    except (RawDataError, UnknownTeamError, PermissionError, backtest_run.FinalSetAlreadyOpened) as exc:
         print(f"HATA: {exc}", file=sys.stderr)
         return 1
     finally:

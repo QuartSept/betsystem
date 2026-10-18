@@ -111,6 +111,8 @@ Model, 2019/20–2022/23 döneminde her maçı sanki o gün oynanıyormuş gibi,
 - **Gerçekçi fiyat:** Bahis yalnızca erken oran üzerinden yapılmış sayılır; erken ile kapanış arasındaki fiyatlar varsayılmaz.
 - **Geçme şartı:** En az N bağımsız bahiste CLV pozitif ve güven aralığı sıfırın üstünde; sonuç kilitli final sette de tutarlı. Kâr var ama CLV negatifse büyük ihtimalle şanstır.
 
+- **Seçim dönemi sonucu (18 Ekim 2026):** Geçme şartı sağlanmadı (karar #43). Ayrıntı: `reports/faz4_secim.md`.
+
 **Final set tek kullanımlıktır.** 2023/24–2024/25 açıldıktan sonra bu veri yeni değişken, parametre veya eşik seçmek için bir daha kullanılmaz. Sonraki model değişikliklerinin bağımsız doğrulaması Faz 6 canlı testinde yapılır.
 
 ## Faz 5 – Ek veriler
@@ -194,6 +196,7 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 40 | Eşik seçimi (ön kayıt): ızgara {0; 0,01; 0,02; 0,03; 0,05; 0,075; 0,10}. Seçim dönemi 2020/21–2022/23 (2019/20 ısınma, karar #32). En az 202 bahis veren eşikler arasında ortalama CLV'si en yüksek olan seçilir; hiçbiri 202'ye ulaşmazsa en çok bahis veren (en düşük) eşik seçilir | Faz 4 |
 | 41 | Güven aralıkları (ön kayıt): bahisler üzerinden bootstrap (5.000 örnek, sabit tohum). Geçme şartındaki alt sınır tek yönlü %95 (5. yüzdelik), N hesabıyla (karar #30) tutarlı; iki yönlü %95 aralık da raporlanır. Çeyrek Kelly: başlangıç kasası 100 birim, pay = 0,25 × (p·o − 1)/(o − 1), bileşik, aynı bahisler | Faz 4 |
 | 42 | Faz 4 geçme şartı (ön kayıt): seçim döneminde seçilen eşikte en az 202 bahis, ortalama CLV > 0 ve alt sınır > 0; kilitli final sette aynı eşik ve modelle en az 202 bahis, ortalama CLV > 0 ve alt sınır > 0. Final set tek seferlik çalıştırılır, kod ikinci çalıştırmayı reddeder; açmadan önce proje sahibinin onayı alınır | Faz 4 |
+| 43 | Faz 4 seçim dönemi sonucu: geçme şartı **sağlanmadı**. Seçilen eşik 0,10 (778 bahis): ortalama CLV −0,0171 (tek yönlü alt sınır −0,0242), ROI −0,025. Tüm eşiklerde CLV −0,017…−0,019, yani rastgele seçimin beklenen değeri (marj) düzeyinde. Üç sezonun hepsinde negatif. B365 duyarlılığı da negatif (−0,0346). Kilitli final set açılmadı | Faz 4 |
 
 ## Riskler ve gerçekçi beklentiler
 

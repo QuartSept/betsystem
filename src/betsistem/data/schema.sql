@@ -122,3 +122,22 @@ CREATE TABLE IF NOT EXISTS predictions (
     created_at       TEXT NOT NULL,
     PRIMARY KEY (model, config, match_id)
 );
+
+-- Kilitli final setinin açılış kaydı (karar #42). Tek satır olabilir; satır silinemez,
+-- sonuç alanı yalnızca bir kez yazılabilir.
+CREATE TABLE IF NOT EXISTS final_set_runs (
+    id           INTEGER PRIMARY KEY CHECK (id = 1),
+    opened_at    TEXT NOT NULL,
+    config       TEXT NOT NULL,
+    threshold    REAL NOT NULL,
+    git_commit   TEXT,
+    result_json  TEXT
+);
+
+CREATE TRIGGER IF NOT EXISTS final_set_runs_no_delete BEFORE DELETE ON final_set_runs
+BEGIN SELECT RAISE(ABORT, 'final_set_runs silinemez'); END;
+
+CREATE TRIGGER IF NOT EXISTS final_set_runs_result_once BEFORE UPDATE ON final_set_runs
+WHEN OLD.result_json IS NOT NULL OR NEW.opened_at IS NOT OLD.opened_at OR NEW.config IS NOT OLD.config
+     OR NEW.threshold IS NOT OLD.threshold
+BEGIN SELECT RAISE(ABORT, 'final_set_runs yalnızca sonucu bir kez yazmak için güncellenebilir'); END;

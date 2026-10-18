@@ -1,0 +1,6 @@
+{
+  "config": "{\"dixon_coles\": false, \"l2\": 1.0, \"window_days\": 3650, \"xg_weight\": 0.5, \"xi\": 0.001}",
+  "threshold": 0.1,
+  "n_required": 202,
+  "selected_at": "2026-10-18T15:43:03+00:00"
+}

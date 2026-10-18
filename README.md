@@ -38,6 +38,9 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 # Karar #36: yeni çıkan takım ayarı (reports/faz3_yeni_cikan.md)
 .venv\Scripts\betsistem promoted-report
 
+# Faz 4: model seçimi döneminde backtest ve eşik seçimi (reports/faz4_secim.md)
+.venv\Scripts\betsistem backtest-select
+
 # İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
 .venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
 ```

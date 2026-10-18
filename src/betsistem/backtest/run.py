@@ -1,0 +1,182 @@
+"""Faz 4 çalıştırıcıları: model seçimi döneminde eşik seçimi ve kilitli final setinin tek seferlik testi."""
+
+import json
+import sqlite3
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+
+from betsistem.backtest import engine
+from betsistem.config import (
+    BET_PRICE_BOOKMAKER,
+    FINAL_TEST_SEASONS,
+    N_TARGET,
+    PROJECT_ROOT,
+    SENSITIVITY_BOOKMAKERS,
+    season_label,
+)
+from betsistem.model.experiments import CHECK_SEASONS, FAZ3_MODEL, TUNING_SEASONS
+from betsistem.model.market import market_prices, remove_margin
+from betsistem.model.predict import ModelConfig, load_matches, walk_forward
+from betsistem.model.timeline import FinalSetToken
+from betsistem.report import markdown_table as _md
+
+SELECTION_SEASONS = TUNING_SEASONS + CHECK_SEASONS  # 2019/20 ısınma (karar #32)
+SELECTION_FILE = PROJECT_ROOT / "reports" / "faz4_secim.json"
+CONFIRM_PHRASE = "FINAL SETİ AÇ"
+
+
+class FinalSetAlreadyOpened(Exception):
+    pass
+
+
+def _prices(conn, bookmaker: str, timing: str) -> pd.DataFrame:
+    p = market_prices(conn, bookmaker)
+    return p[p.index.get_level_values("timing") == timing].reset_index()[["match_id", "H", "D", "A"]]
+
+
+def _fair(conn, bookmaker: str, timing: str) -> pd.DataFrame:
+    p = market_prices(conn, bookmaker)
+    p = p[p.index.get_level_values("timing") == timing]
+    return remove_margin(p).reset_index()[["match_id", "H", "D", "A"]]
+
+
+def _predictions(conn, seasons, config: ModelConfig, token=None) -> tuple[pd.DataFrame, pd.Series]:
+    matches = load_matches(conn)
+    preds = walk_forward(matches, seasons, config, final_set_token=token)
+    info = matches.set_index("match_id")
+    preds = preds.join(info[["season", "match_date"]], on="match_id")
+    return preds, info["ftr"]
+
+
+def _run_rule(conn, preds, results, bookmaker: str, threshold: float) -> pd.DataFrame:
+    bets = engine.select_bets(preds, _prices(conn, bookmaker, "early"), threshold)
+    return engine.settle(bets, results, _fair(conn, bookmaker, "closing"))
+
+
+def _summary_row(label: str, s: engine.Summary) -> dict:
+    return {
+        "": label,
+        "bahis": s.bets,
+        "ort. CLV": round(s.clv["mean"], 4),
+        "CLV alt (tek yönlü %95)": round(s.clv["lo_one_sided"], 4),
+        "CLV %95 GA": f"{s.clv['lo']:.4f} … {s.clv['hi']:.4f}",
+        "ROI": round(s.roi["mean"], 4),
+        "ROI %95 GA": f"{s.roi['lo']:.4f} … {s.roi['hi']:.4f}",
+        "en büyük düşüş (birim)": round(s.max_drawdown, 1),
+        "¼ Kelly kasa (100'den)": round(s.kelly_final, 1),
+        "¼ Kelly en büyük düşüş": f"{s.kelly_max_drawdown_pct:.1%}",
+    }
+
+
+def _season_rows(settled: pd.DataFrame) -> list[dict]:
+    return [_summary_row(season_label(season), engine.summarize(g)) for season, g in settled.groupby("season")]
+
+
+def _git_commit() -> str | None:
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT, capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def selection_report(conn: sqlite3.Connection, selection_file: Path = SELECTION_FILE) -> str:
+    config = FAZ3_MODEL
+    preds, results = _predictions(conn, SELECTION_SEASONS, config)
+
+    settled = {t: _run_rule(conn, preds, results, BET_PRICE_BOOKMAKER, t) for t in engine.THRESHOLDS}
+    summaries = {t: engine.summarize(s) for t, s in settled.items()}
+    chosen = engine.choose_threshold(summaries, N_TARGET)
+    main = summaries[chosen]
+
+    grid = pd.DataFrame([_summary_row(f"eşik {t:g}", s) for t, s in summaries.items()])
+    sens = []
+    for bk in SENSITIVITY_BOOKMAKERS:
+        s_bk = engine.summarize(_run_rule(conn, preds, results, bk, chosen))
+        sens.append(_summary_row(f"{bk} erken, eşik {chosen:g}", s_bk))
+
+    selection_file.parent.mkdir(parents=True, exist_ok=True)
+    selection_file.write_text(json.dumps({
+        "config": config.key(),
+        "threshold": chosen,
+        "n_required": N_TARGET,
+        "selected_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    passed = main.passes(N_TARGET)
+    parts = [
+        "# Faz 4: model seçimi döneminde geriye dönük test",
+        f"Oluşturulma: {datetime.now(timezone.utc).isoformat(timespec='seconds')} (UTC).",
+        "## Kurallar (ön kayıt: karar #38–#42)",
+        "\n".join([
+            f"- Model: `{config.key()}` (karar #35), walk-forward, karar günü Cuma/Salı.",
+            f"- Dönem: {', '.join(season_label(s) for s in SELECTION_SEASONS)} (2019/20 ısınma).",
+            "- Maç başına değeri en yüksek tek sonuç; değer = model olasılığı × Pinnacle erken oranı − 1.",
+            "- CLV = bahis oranı × marjsız Pinnacle kapanış olasılığı − 1. ROI sabit 1 birimle.",
+            f"- Eşik seçimi: en az {N_TARGET} bahis verenler arasında ortalama CLV'si en yüksek eşik.",
+        ]),
+        "## Eşik ızgarası",
+        _md(grid),
+        f"## Seçilen eşik: {chosen:g}",
+        _md(pd.DataFrame([_summary_row("tüm dönem", main)] + _season_rows(settled[chosen]))),
+        "## Duyarlılık: B365 erken oranı (karar #25)",
+        "Aynı model ve eşik; bahis B365 erken oranıyla seçilir, CLV B365 kapanışına göre hesaplanır.",
+        _md(pd.DataFrame(sens)),
+        "## Geçme şartı (karar #42), seçim dönemi",
+        f"En az {N_TARGET} bahis, ortalama CLV > 0, tek yönlü %95 alt sınır > 0: **{'sağlandı' if passed else 'sağlanmadı'}** "
+        f"({main.bets} bahis, ortalama CLV {main.clv['mean']:.4f}, alt sınır {main.clv['lo_one_sided']:.4f}).",
+        "Kâr var ama CLV negatifse sonuç büyük ihtimalle şanstır.",
+    ]
+    return "\n\n".join(parts) + "\n"
+
+
+def open_final_set(conn: sqlite3.Connection, config_key: str, threshold: float, confirm: str) -> FinalSetToken:
+    """Final setini açar ve açılışı kalıcı olarak kaydeder. İkinci açılış reddedilir (karar #42)."""
+    if confirm != CONFIRM_PHRASE:
+        raise PermissionError(f"Final setini açmak için onay ifadesi gerekir: {CONFIRM_PHRASE!r}")
+    if conn.execute("SELECT 1 FROM final_set_runs").fetchone():
+        raise FinalSetAlreadyOpened("Kilitli final set daha önce açıldı; ikinci çalıştırma yapılamaz.")
+    with conn:
+        conn.execute(
+            "INSERT INTO final_set_runs (id, opened_at, config, threshold, git_commit) VALUES (1, ?, ?, ?, ?)",
+            (datetime.now(timezone.utc).isoformat(timespec="seconds"), config_key, threshold, _git_commit()),
+        )
+    return FinalSetToken(run_id=1)
+
+
+def final_report(conn: sqlite3.Connection, confirm: str, selection_file: Path = SELECTION_FILE) -> str:
+    selection = json.loads(selection_file.read_text(encoding="utf-8"))
+    config = ModelConfig(**json.loads(selection["config"]))
+    threshold = float(selection["threshold"])
+    token = open_final_set(conn, config.key(), threshold, confirm)
+
+    preds, results = _predictions(conn, FINAL_TEST_SEASONS, config, token)
+    settled = _run_rule(conn, preds, results, BET_PRICE_BOOKMAKER, threshold)
+    main = engine.summarize(settled)
+    sens = [_summary_row(f"{bk} erken", engine.summarize(_run_rule(conn, preds, results, bk, threshold)))
+            for bk in SENSITIVITY_BOOKMAKERS]
+    passed = main.passes(N_TARGET)
+
+    with conn:
+        conn.execute(
+            "UPDATE final_set_runs SET result_json = ? WHERE id = 1",
+            (json.dumps({"passed": passed, "bets": main.bets, "clv": main.clv, "roi": main.roi}),),
+        )
+
+    parts = [
+        "# Faz 4: kilitli final set (tek seferlik)",
+        f"Çalıştırma: {datetime.now(timezone.utc).isoformat(timespec='seconds')} (UTC). Ayar değiştirilmedi.",
+        f"- Model: `{config.key()}`, eşik {threshold:g} (seçim: {selection['selected_at']}).",
+        f"- Dönem: {', '.join(season_label(s) for s in FINAL_TEST_SEASONS)}.",
+        "## Sonuç",
+        _md(pd.DataFrame([_summary_row("final set", main)] + _season_rows(settled))),
+        "## Duyarlılık: B365 erken",
+        _md(pd.DataFrame(sens)),
+        "## Geçme şartı (karar #42), final set",
+        f"**{'Sağlandı' if passed else 'Sağlanmadı'}** ({main.bets} bahis, ortalama CLV {main.clv['mean']:.4f}, "
+        f"alt sınır {main.clv['lo_one_sided']:.4f}).",
+    ]
+    return "\n\n".join(parts) + "\n"
