@@ -1,0 +1,8 @@
+# Satır sonları depoda ve çalışma kopyasında LF (core.autocrlf ayarından bağımsız).
+* text=auto eol=lf
+
+# İkili dosyalar
+*.xlsx binary
+*.zip binary
+*.sqlite binary
+*.png binary
