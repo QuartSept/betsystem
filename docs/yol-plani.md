@@ -197,6 +197,8 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 41 | Güven aralıkları (ön kayıt): bahisler üzerinden bootstrap (5.000 örnek, sabit tohum). Geçme şartındaki alt sınır tek yönlü %95 (5. yüzdelik), N hesabıyla (karar #30) tutarlı; iki yönlü %95 aralık da raporlanır. Çeyrek Kelly: başlangıç kasası 100 birim, pay = 0,25 × (p·o − 1)/(o − 1), bileşik, aynı bahisler | Faz 4 |
 | 42 | Faz 4 geçme şartı (ön kayıt): seçim döneminde seçilen eşikte en az 202 bahis, ortalama CLV > 0 ve alt sınır > 0; kilitli final sette aynı eşik ve modelle en az 202 bahis, ortalama CLV > 0 ve alt sınır > 0. Final set tek seferlik çalıştırılır, kod ikinci çalıştırmayı reddeder; açmadan önce proje sahibinin onayı alınır | Faz 4 |
 | 43 | Faz 4 seçim dönemi sonucu: geçme şartı **sağlanmadı**. Seçilen eşik 0,10 (778 bahis): ortalama CLV −0,0171 (tek yönlü alt sınır −0,0242), ROI −0,025. Tüm eşiklerde CLV −0,017…−0,019, yani rastgele seçimin beklenen değeri (marj) düzeyinde. Üç sezonun hepsinde negatif. B365 duyarlılığı da negatif (−0,0346). Kilitli final set açılmadı | Faz 4 |
+| 44 | Kilitli final set (2023/24–2024/25) açılmadı ve kilitli kalır; seçim döneminde geçemeyen model için harcanmaz. Faz 7 kuralı uygulanır: modele geri dönülür | Faz 4, Faz 7 |
+| 45 | Hareket teşhisi (seçim dönemi, bilgi amaçlı): modelin erken orandan sapması (logit) ile erken→kapanış hareketi arasında korelasyon H −0,02, X +0,07, A −0,005. Model sapmaları piyasanın sonradan öğrendiği bilgiyi taşımıyor. Premier League'de kapanış oranı erkene göre log-loss'u yalnızca 0,000–0,009 iyileştiriyor: Cuma'dan sonra piyasaya az bilgi giriyor | Faz 4 |
 
 ## Riskler ve gerçekçi beklentiler
 
