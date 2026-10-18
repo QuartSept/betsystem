@@ -197,7 +197,7 @@ En olası sonuç, bu yolun da avantaj göstermemesi; plan bunu yine erken ve ucu
 
 ## Karar kaydı
 
-Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Ekim 2026'da alındı ve aynı numaralarla oraya işlendi.
+Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Ekim 2026'da alındı ve aynı numaralarla oraya işlendi. #77 ve sonrası uygulama kayıtlarıdır.
 
 | # | Karar | Bölüm |
 | --- | --- | --- |
@@ -224,6 +224,7 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 74 | 10b ("piyasa + model birleşimi") çıkarıldı: Belçika eğimiyle (0,047) birleşik olasılığın piyasadan sapması ≈ 0,4 puan, Pinnacle erken marjı %4,1; kural kurgusu gereği bahis üretemez | Faz 10 |
 | 75 | #10 değişikliği: alt/üst 2.5, 1-X-2 doğrulanmadan Faz 10'da (10c) tarihsel olarak test edilir; yükleyici alt/üst sütunlarını okuyacak şekilde genişletilir. Canlı kural yalnızca 1-X-2 | Faz 10 |
 | 76 | Faz 12 zamanlaması ve eşik: referans, fikstür dosyasının haftalık güncellemesinden sonraki ilk indirme (sha ve zaman kaydedilir), İddaa kaydı bu andan en çok ±2 saat; e ∈ {%2; %1; %0} içinden öngörülen bahis sayısının N'ye en çok iki sezonda ulaştığı en büyük değer; hiçbiri ulaşmazsa Faz 12 test olarak yapılmaz | Faz 12 |
+| 77 | Faz 10 ön kayıtları sonuçlardan önce commit edildi: 10a `docs/on-kayit/faz10_10a.md` (3a4f8d2; N = 361, yalnız k = 0 fizibil), 10c `faz10_10c.md` (03c39d1; N = 155, tüm eşikler fizibil), 10d `faz10_10d.md` (1ade138; N = 111, tüm eşikler fizibil, sayılar Faz 2 modeliyle yaklaşık). Alt/üst oranları yükleyiciye eklendi (93a3ab0) | Faz 10 |
 
 ## İlk adımlar
 
@@ -234,7 +235,7 @@ Sıra, en ucuz ve en belirleyici kontrollerden başlıyor.
 - [ ] 8.3: İddaa kullanım koşullarını oku, kayıt yöntemini yaz
 - [ ] 8.1 ve 8.2: Bu Cuma'dan itibaren E0 ve T1 için İddaa oranlarını ve MBS'yi kaydetmeye başla (2–3 hafta)
 - [ ] 8.5 ve 8.6: Faz 11 liglerinin 2025/26–2026/27 CSV'lerini indir; veri kalite raporuna BFE doluluğunu ve B1 2022/23 veri hatası kontrolünü ekle
-- [ ] Faz 10 için üç testin ön kaydını, sonuçlardan önce ayrı commit'lerle yap (10c için önce yükleyici genişletmesi)
+- [x] Faz 10 için üç testin ön kaydını, sonuçlardan önce ayrı commit'lerle yap (10c için önce yükleyici genişletmesi)
 - [ ] Faz 9 panelinin ilk sürümü: haftalık maçlar, referans dosyası yükleme ve İddaa kayıt formu
 
 ## Kaynaklar
