@@ -1,0 +1,63 @@
+# betsistem
+
+Futbol bahis analiz sistemi. Amaç ve kurallar: [docs/yol-plani.md](docs/yol-plani.md).
+
+## Kurulum
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[dev]"
+.venv\Scripts\python -m pytest
+```
+
+## Veri
+
+Ham dosyalar `data/raw/` altında değiştirilmeden, veritabanı `data/db/betsistem.sqlite` içinde tutulur (ikisi de git dışında).
+Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kaydedilir.
+
+```powershell
+# Otomatik indirme (erişim varsa)
+.venv\Scripts\betsistem fetch --season 2223
+
+# Elle indirilen dosya
+.venv\Scripts\betsistem import-raw C:\indirilenler\E0.csv --season 2223
+
+# Understat xG (önce football-data yüklenmiş olmalı)
+.venv\Scripts\betsistem fetch-xg --season 2223
+
+# Raporlar: reports/veri_kalite.md ve reports/n_hedefi.md
+.venv\Scripts\betsistem quality-report
+.venv\Scripts\betsistem sample-size
+
+# İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
+.venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
+```
+
+Understat takım adları `src/betsistem/data/team_aliases.csv` ile football-data adlarına eşlenir.
+Eşleşmeyen ad olursa yükleme hiçbir şey yazmadan durur; eşleşme bu dosyaya eklenir.
+
+### İddaa kayıtları
+
+Her satır, oranın görüldüğü anı (`recorded_at`, saat dilimiyle: `2026-10-16T15:30+03:00`) taşır.
+Kayıtlar veritabanında yalnızca eklenir; aynı an ve maç için farklı oran gelirse içe aktarma durur.
+Düzeltme gerekiyorsa yeni bir `recorded_at` ile yeni satır eklenir.
+
+```text
+recorded_at,match_date,kickoff_time,home_team,away_team,price_home,price_draw,price_away,note
+2026-10-16T15:30+03:00,2026-10-18,17:00,Arsenal,Chelsea,1.85,3.60,4.10,
+```
+
+### Erişim
+
+football-data.co.uk Türkiye'den erişime engelli olabilir. Bu durumda `fetch` hata verir;
+dosyayı (`https://www.football-data.co.uk/mmz4281/2223/E0.csv`) elle edinip `import-raw` ile eklenir.
+İçerik CSV başlığı doğrulanmadan saklanmaz, böylece engel sayfası yanlışlıkla veri olarak kaydedilmez.
+
+`tests/fixtures/E0_sample.csv` testler için hazırlanmış örnek dosyadır, gerçek veri yerine kullanılmaz.
+
+## Yapı
+
+- `src/betsistem/data/`: ham veri edinme, şema, yükleyiciler
+- `src/betsistem/model/`: modeller (Faz 2+)
+- `src/betsistem/backtest/`: geriye dönük test (Faz 4)
+- `notebooks/`: yalnızca keşif ve raporlama

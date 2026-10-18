@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "betsistem"
+version = "0.1.0"
+description = "Futbol bahis analiz sistemi: oranın yanlış konduğu yerleri bulma (value bet) araştırması"
+requires-python = ">=3.11"
+dependencies = ["pandas>=2.2", "requests>=2.31"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+betsistem = "betsistem.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+betsistem = ["data/*.sql", "data/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

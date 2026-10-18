@@ -1,0 +1,98 @@
+from pathlib import Path
+
+import pytest
+
+from betsistem.config import season_label
+from betsistem.data.db import connect, init_db
+from betsistem.data.football_data import load_football_data, parse_date, parse_odds_columns
+from betsistem.data.raw import RawDataError, import_football_data
+
+FIXTURE = Path(__file__).parent / "fixtures" / "E0_sample.csv"
+
+
+@pytest.fixture
+def conn():
+    c = connect(":memory:")
+    init_db(c)
+    yield c
+    c.close()
+
+
+def test_season_label():
+    assert season_label("2223") == "2022/23"
+    assert season_label("9900") == "1999/00"
+
+
+def test_parse_date_handles_both_year_formats():
+    assert parse_date("05/08/2022") == "2022-08-05"
+    assert parse_date("05/08/22") == "2022-08-05"
+
+
+def test_parse_odds_columns_keeps_only_1x2():
+    cols = ["PSH", "PSCH", "MaxCA", "AvgD", "B365>2.5", "B365AHH", "PAHH", "AHh", "HC", "BbMxH", "BbAH", "FTHG"]
+    parsed = {c.column: (c.bookmaker, c.timing, c.outcome) for c in parse_odds_columns(cols)}
+    assert parsed == {
+        "PSH": ("PS", "early", "H"),
+        "PSCH": ("PS", "closing", "H"),
+        "MaxCA": ("Max", "closing", "A"),
+        "AvgD": ("Avg", "early", "D"),
+        "BbMxH": ("BbMx", "early", "H"),
+    }
+
+
+def test_import_and_load(conn, tmp_path):
+    vid = import_football_data(conn, "E0", "2223", FIXTURE, raw_dir=tmp_path)
+    result = load_football_data(conn, vid, raw_dir=tmp_path)
+
+    assert result.matches == 3
+    # 3 maç x 8 şirket/zaman kombinasyonu x 3 sonuç = 72, biri boş (Fulham-Liverpool PSCH)
+    assert result.odds == 71
+
+    m = conn.execute(
+        "SELECT m.*, h.name AS home, a.name AS away FROM matches m"
+        " JOIN teams h ON h.id = m.home_team_id JOIN teams a ON a.id = m.away_team_id"
+        " WHERE h.name = 'Crystal Palace'"
+    ).fetchone()
+    assert (m["away"], m["match_date"], m["kickoff_time"], m["ftr"]) == ("Arsenal", "2022-08-05", "20:00", "A")
+
+    pin_close = conn.execute(
+        "SELECT outcome, price FROM odds WHERE match_id = ? AND bookmaker = 'PS' AND timing = 'closing'",
+        (m["id"],),
+    ).fetchall()
+    assert {r["outcome"]: r["price"] for r in pin_close} == {"H": 4.64, "D": 3.62, "A": 1.85}
+
+
+def test_reload_is_idempotent(conn, tmp_path):
+    vid = import_football_data(conn, "E0", "2223", FIXTURE, raw_dir=tmp_path)
+    load_football_data(conn, vid, raw_dir=tmp_path)
+    ids_before = [r["id"] for r in conn.execute("SELECT id FROM matches ORDER BY id")]
+
+    assert import_football_data(conn, "E0", "2223", FIXTURE, raw_dir=tmp_path) == vid
+    load_football_data(conn, vid, raw_dir=tmp_path)
+
+    assert [r["id"] for r in conn.execute("SELECT id FROM matches ORDER BY id")] == ids_before
+    assert conn.execute("SELECT COUNT(*) FROM odds").fetchone()[0] == 71
+    assert conn.execute("SELECT COUNT(*) FROM teams").fetchone()[0] == 6
+
+
+def test_rejects_non_csv_content(conn, tmp_path):
+    block_page = tmp_path / "blocked.html"
+    block_page.write_text("<html><body>Erişim engellendi</body></html>", encoding="utf-8")
+    with pytest.raises(RawDataError):
+        import_football_data(conn, "E0", "2223", block_page, raw_dir=tmp_path)
+
+
+def test_parse_odds_columns_newer_bookmaker_codes():
+    cols = ["BFD", "BFCD", "BFDD", "BFDCH", "BMGMA", "CLCH", "SKBCD", "PPH", "BVCA"]
+    parsed = {c.column: (c.bookmaker, c.timing, c.outcome) for c in parse_odds_columns(cols)}
+    assert parsed == {
+        "BFD": ("BF", "early", "D"),
+        "BFCD": ("BF", "closing", "D"),
+        "BFDD": ("BFD", "early", "D"),
+        "BFDCH": ("BFD", "closing", "H"),
+        "BMGMA": ("BMGM", "early", "A"),
+        "CLCH": ("CL", "closing", "H"),
+        "SKBCD": ("SKB", "closing", "D"),
+        "PPH": ("PP", "early", "H"),
+        "BVCA": ("BV", "closing", "A"),
+    }
