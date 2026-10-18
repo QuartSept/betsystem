@@ -48,8 +48,9 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 .venv\Scripts\betsistem import-zip data_2122.zip --season 2122
 .venv\Scripts\betsistem league-screen
 
-# Haftalık: fikstür dosyasını sürümle, sonra İddaa kayıtlarını ekle (şablon: templates/iddaa_kayit_sablonu.xlsx)
-.venv\Scripts\betsistem import-fixtures fixtures_20261023_1930.csv
+# Haftalık (#93–#96): Cuma 17:00–19:00 İddaa oranlarını şablona gir; Cumartesi sabahı fikstür dosyasını
+# sitedeki yükleme zamanıyla sürümle, sonra İddaa kayıtlarını ekle (şablon: templates/iddaa_kayit_sablonu.xlsx)
+.venv\Scripts\betsistem import-fixtures fixtures_20261024_1000.csv --uploaded-at "24/10/26 09:35"
 .venv\Scripts\betsistem import-iddaa iddaa_kayitlari.xlsx
 .venv\Scripts\betsistem fixtures-log
 ```
@@ -63,9 +64,13 @@ Tek şablon: `templates/iddaa_kayit_sablonu.xlsx` (karar #79). Talimatlar şablo
 
 - Takım adları football-data yazımıyla girilir; her satır, `fikstur_dosyasi` sütununda adı yazılan ve önce
   `import-fixtures` ile yüklenmiş fikstür dosyasındaki bir maçla eşleşmek zorundadır. Yazım yanlışsa öneri verilir.
-- Kayıt zamanı Türkiye saatidir. Ondalık için virgül ya da nokta kullanılabilir.
+- Kayıt zamanı Türkiye saatidir; kayıt Cuma (hafta içi maçlar için Salı) 17:00–19:00 arasında yapılır (#93).
+  Aralık dışı kayıt saklanır ama teste girmez. Ondalık için virgül ya da nokta kullanılabilir.
+- Fikstür dosyası Cumartesi sabahı yüklenir ve Cuma oranlarını taşır. Sitedeki "Latest fixtures uploaded" zamanı
+  `--uploaded-at` ile verilir; yeni yükleme yapılmadan indirilmiş önceki haftanın dosyası reddedilir (#94).
+- Dosyada referans oranla yer almayan maçlar (ör. Cuma akşamı maçları) kaydedilir ama teste girmez (#96).
 - Hatalı satır varsa dosyanın hiçbir satırı yazılmaz. Kayıtlar yalnızca eklenir; düzeltme yeni kayıt zamanıyla.
-- Fikstür dosyalarının her indirmesi kaydedilir; `fixtures-log` içeriğin ne zaman değiştiğini gösterir (8.4).
+- Fikstür dosyalarının her indirmesi kaydedilir; `fixtures-log` yükleme gün/saatini ve içerik değişimini gösterir (8.4, #97).
 
 ### Erişim
 

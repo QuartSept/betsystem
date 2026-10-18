@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS iddaa_odds_log (
     price_away           REAL NOT NULL CHECK (price_away > 1.0),
     mbs                  INTEGER NOT NULL CHECK (mbs >= 1),
     fixtures_version_id  INTEGER NOT NULL REFERENCES data_versions(id),  -- referans fikstür dosyası
+    has_reference        INTEGER NOT NULL CHECK (has_reference IN (0, 1)),  -- 0: dosyada referans oran yok (#96)
     note                 TEXT,
     data_version_id      INTEGER NOT NULL REFERENCES data_versions(id),  -- kaydın geldiği Excel dosyası
     UNIQUE (recorded_at, home_team, away_team)
@@ -154,6 +155,8 @@ CREATE TABLE IF NOT EXISTS fixture_downloads (
     data_version_id  INTEGER NOT NULL REFERENCES data_versions(id),
     file_name        TEXT NOT NULL UNIQUE,
     downloaded_at    TEXT NOT NULL,           -- ISO 8601, Türkiye saati
+    uploaded_at      TEXT NOT NULL,           -- sitedeki "Latest fixtures uploaded", İngiltere saati (#94)
+    collection_day   TEXT NOT NULL,           -- dosyanın taşıdığı oranların toplandığı Cuma/Salı
     imported_at      TEXT NOT NULL
 );
 

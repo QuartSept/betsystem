@@ -103,7 +103,7 @@ Panel iki iş yapar: her hafta maçların olasılıklarını ve İddaa'daki bekl
 | Haftalık maçlar | Her maç için marjsız piyasa olasılığı (ana), model olasılığı (ikincil), İddaa oranı, MBS, EV |
 | Fırsat listesi | Yalnızca EV önceden belirlenen eşiğin üstündeki ve MBS 1 olan sonuçlar; yoksa "Bu hafta uygun fırsat yok" |
 | Referans dosyası | Haftalık fikstür dosyasının yüklenmesi; sha ve yükleme zamanı otomatik kaydedilir |
-| İddaa kayıt formu | Oranların elle girişi; kayıt zamanı otomatik eklenir; referans dosyanın yüklenmesinden 2 saatten uzak kayıt uyarı verir |
+| İddaa kayıt formu | Oranların elle girişi; kayıt zamanı otomatik eklenir; Cuma/Salı 17:00–19:00 dışındaki kayıt uyarı verir (#93) |
 | Kayıt geçmişi | Tüm kayıtlar; yalnızca ekleme, düzeltme yeni satır olarak |
 | Performans | Faz 12 bahisleri: CLV, ROI, bahis sayısı / N, referansa göre ayrı raporlama |
 
@@ -160,7 +160,7 @@ Asıl sınav: gerçekten oynanabilecek oranlarla, gerçek zamanda ve henüz para
 | Konu | Karar |
 | --- | --- |
 | Karar anı | Cuma (hafta içi maçları için Salı) football-data fikstür dosyasının o haftaki güncellemesi (#6'nın canlı karşılığı) |
-| Referans anı ve kayıt (#76) | Referans, o haftanın fikstür dosyasının güncellendikten sonraki ilk indirmesidir; dosyanın sha'sı ve indirme zamanı kaydedilir. İddaa oranları bu indirme zamanından en çok 2 saat önce veya sonra kaydedilir. football-data'nın oranları topladığı kesin saat bilinmediği için referansın gerçek yaşı raporda belirsizlik olarak belirtilir |
+| Referans anı ve kayıt (#93–#96) | İddaa oranları Cuma (hafta içi maçları için Salı) 17:00–19:00 Türkiye saati arasında kaydedilir; bu, football-data'nın oranları topladığı öğleden sonraya denk gelir. Referans, o toplama gününe ait ve sonradan (Cumartesi sabahı) yüklenen fikstür dosyasıdır; sha'sı, indirme zamanı ve sitedeki yükleme zamanı kaydedilir. Önceki haftanın dosyası reddedilir. Dosyada referans oranla yer almayan maç teste girmez. Toplanma saatinin kesin bilinmemesi raporda belirsizlik olarak belirtilir |
 | Adil olasılık | Avg erkenden **Shin** yöntemiyle marjı çıkarılmış olasılık (#88); BFE varsa duyarlılık olarak o da |
 | Bahis kuralı | EV = p\_adil × o\_iddaa − 1 > e; yalnızca MBS 1 maçlar; maç başına en yüksek EV'li tek sonuç |
 | EV eşiği e (#76) | Faz 8 kayıtlarından, yalnızca fiyatlarla öngörülen sezonluk bahis sayısına göre seçilir: {%2; %1; %0} içinden, öngörülen bahis sayısının N'ye en çok iki sezonda ulaştığı en büyük e. Hiçbiri ulaşmıyorsa Faz 12 test olarak yapılmaz; panel gösterici olarak kalır |
@@ -241,6 +241,11 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 90 | Veri düzeltmesi: maç anahtarı (lig, sezon, ev, deplasman) aynı eşleşmenin sezonda tekrar oynandığı liglerde ikinci maçı birincinin üzerine yazıyordu (İskoçya SC0–SC3 ve Yunanistan G1 tüm sezonlar, Belçika B1 yalnızca 2025/26 play-off'ları; toplam 1.828 maç). Anahtara eşleşmenin sezondaki sırası (`leg`) eklendi, veriler yeniden yüklendi. Aşama 1'de kullanılan E0, T1, B1 ve N1 (2019/20–2022/23) verisi etkilenmemişti. Lig taraması (#47) aynı kuralla düzeltilmiş veriyle yeniden hesaplandı: seçim değişmedi (B1, N1); G1 artık uygun ama bilgi kazancı 0,0068 ile üçüncü. Faz 11 ön fizibilitesi (#85, #86, #89 önerisiyle): E0 + T1 projeksiyonu 89 bahis < N = 254; 22 uygun lig birlikte projeksiyon 971 ≥ N = 252 → kapsam ön sonucu tüm uygun ligler (`reports/faz11_on_fizibilite.md`) | Veri, Faz 11 |
 | 91 | Faz 11 / 10a ön kaydı `docs/on-kayit/faz11_10a.md`: (1) lig listesi 22 lig olarak adıyla sabitlendi; kesin sayımda doluluğu %90'ın altına düşen lig çıkarılır, yeni lig eklenmez; (2) σ yalnızca N'yi belirler, geçme kararı pencerenin kendi bootstrap alt sınırıyla verilir (oransal ve Shin, α = 0,05); (3) karar birleşik veriyle, lig bazında ve E0 + T1 sonuçları yalnızca bilgi; (4) sınırlama: pencerede Avg'ye Pinnacle girmiyor, p_adil seçim dönemine göre değişmiş olabilir; (5) gözlem: bahis sıklığı seçim döneminde %13,1, pencerede E0 %6,6–6,7, T1 %12,1–14,3; kural ve eşik değişmez | Faz 11 |
 | 92 | `E01718.csv` ve `E01819.csv` (Premier League 2017/18–2018/19) yüklenmez; dondurulmuş Aşama 1 ve Faz 10 girdileri değişmesin | Veri |
+| 93 | Zaman kuralı oranların toplanma anına bağlandı (#76 ve #79'daki "fikstür indirmesinden en çok ±2 saat" kuralının yerine): İddaa kaydı **Cuma 17:00–19:00 Türkiye saati** arasında yapılır (hafta içi maçlar için Salı aynı saatler). Bu aralık İngiltere saatiyle 25 Ekim'e kadar 15:00–17:00, sonrasında 14:00–16:00'ya denk gelir; ikisi de football-data'nın oran toplama zamanı olan öğleden sonranın içindedir. Toplanma saatinin kesin bilinmemesi raporlarda belirsizlik olarak yer alır. Aralık dışındaki kayıt saklanır ama teste girmez | Faz 8, 12 |
+| 94 | Fikstür indirmesinde sitedeki "Latest fixtures uploaded" zamanı (İngiltere saati) da kaydedilir. Dosya, yüklendiği günden önceki en yakın Cuma veya Salı'nın oranlarını taşır. İndirme anına göre beklenen toplama gününden önce yüklenmiş dosya (yani yeni yükleme yapılmadan indirilen, önceki haftaya ait dosya) reddedilir. İlk gözlem: 17/10/26 09:35 (İngiltere saati), Cumartesi sabahı | Faz 8, 12 |
+| 95 | İçe aktarmadaki "2 saatten uzak" uyarısı kaldırıldı; yerine #93 aralığı dışındaki kayıt için uyarı verilir. Ayrıca kaydın referans fikstür dosyası, kaydın yapıldığı toplama gününe ait olmalıdır; başka haftanın dosyası hata verir | Faz 8, 12 |
+| 96 | Cumartesi yüklenen fikstür dosyasında referans oranla (Avg 1-X-2) yer almayan maçlar (özellikle Cuma akşamı oynanan Süper Lig ve Premier League maçları) teste girmez. Bu maçların İddaa kaydı 8.1/8.2 için saklanır ve `has_reference = 0` olarak işaretlenir. Bu kural ilk kayıttan (23 Ekim 2026) önce yazıldı | Faz 8, 12 |
+| 97 | Fikstür yükleme saati ilk haftalarda `fixtures-log` ile izlenir. Saat haftadan haftaya belirgin değişirse veya hafta içi (Salı oranları) yükleme düzeni farklı çıkarsa #93–#96 yeniden konuşulur | Faz 8 |
 
 ## İlk adımlar
 

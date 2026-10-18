@@ -4,8 +4,11 @@ Kurallar:
 - Takım adları football-data yazımıyla girilir (fikstür dosyasındaki HomeTeam/AwayTeam). Her satır,
   `fikstur_dosyasi` sütununda adı yazılan referans fikstür dosyasındaki bir maçla birebir eşleşmek zorundadır.
   Referans dosya önce `betsistem import-fixtures` ile yüklenmiş olmalıdır.
-- Kayıt zamanı Türkiye saatidir (+03:00). Fikstür dosyasının indirme anından 2 saatten uzak kayıtlar
-  kaydedilir ama uyarı verilir (karar #76'daki ±2 saat kuralı analizde ayrıca uygulanır).
+- Kayıt zamanı Türkiye saatidir (+03:00). Kayıt Cuma (hafta içi maçlar için Salı) 17:00–19:00 arasında
+  yapılır (#93); aralık dışındaki kayıt saklanır, uyarı verilir ve teste girmez.
+- Referans fikstür dosyası, kaydın yapıldığı toplama gününe ait olmalıdır (#95); başka haftanın dosyası hata.
+- Dosyada referans oranla (Avg 1-X-2) yer almayan maç, örneğin Cumartesi yüklenen dosyada bulunmayan Cuma
+  akşamı maçı, `has_reference = 0` ile saklanır ve teste girmez (#96).
 - Dosya birikimli tutulabilir: daha önce eklenmiş satırlar atlanır. Aynı (kayıt zamanı, ev, deplasman) için
   farklı oran veya MBS gelirse hiçbir şey yazılmaz, hata verilir; düzeltme yeni bir kayıt zamanıyla eklenir.
 - Hatalı satır varsa dosyanın hiçbir satırı yazılmaz; tüm hatalar birlikte listelenir.
@@ -20,7 +23,7 @@ from pathlib import Path
 import openpyxl
 
 from betsistem.config import LEAGUES, RAW_DIR, season_of
-from betsistem.data.fixtures import TR, fixture_matches
+from betsistem.data.fixtures import TR, collection_day, fixture_download, fixture_matches
 from betsistem.data.raw import RawDataError, store_raw
 
 SOURCE = "iddaa"
@@ -29,7 +32,9 @@ COLUMNS = ("kayit_zamani", "lig", "mac_tarihi", "mac_saati", "ev_sahibi", "depla
            "iddaa_1", "iddaa_x", "iddaa_2", "mbs", "fikstur_dosyasi", "not")
 REQUIRED = ("kayit_zamani", "lig", "mac_tarihi", "ev_sahibi", "deplasman", "iddaa_1", "iddaa_x", "iddaa_2",
             "mbs", "fikstur_dosyasi")
-MAX_GAP = timedelta(hours=2)  # karar #76
+WINDOW_START, WINDOW_END = time(17, 0), time(19, 0)  # karar #93, Türkiye saati
+COLLECTION_WEEKDAYS = (1, 4)  # Salı, Cuma
+REFERENCE_COLUMNS = ("AvgH", "AvgD", "AvgA")
 
 
 @dataclass
@@ -119,12 +124,31 @@ def read_rows(path: Path) -> list[tuple[int, dict]]:
 
 
 def _resolve_fixture(conn, name: str):
-    row = conn.execute(
-        "SELECT data_version_id, downloaded_at FROM fixture_downloads WHERE file_name = ?", (name,)
-    ).fetchone()
-    if row is None:
-        raise ValueError(f"fikstür dosyası '{name}' yüklenmemiş; önce: betsistem import-fixtures {name}")
-    return row["data_version_id"], datetime.fromisoformat(row["downloaded_at"])
+    info = fixture_download(conn, name)
+    if info is None:
+        raise ValueError(f"fikstür dosyası '{name}' yüklenmemiş; önce: betsistem import-fixtures {name} --uploaded-at ...")
+    return info
+
+
+def in_collection_window(recorded: datetime) -> bool:
+    """#93: Cuma veya Salı, 17:00–19:00 (Türkiye saati, uçlar dahil)."""
+    t = recorded.astimezone(TR)
+    return t.weekday() in COLLECTION_WEEKDAYS and WINDOW_START <= t.time().replace(second=0, microsecond=0) <= WINDOW_END
+
+
+def _known_teams(conn, fx, league: str) -> set[str]:
+    names = set(fx.loc[fx.Div == league, "HomeTeam"]) | set(fx.loc[fx.Div == league, "AwayTeam"])
+    rows = conn.execute(
+        "SELECT DISTINCT t.name FROM matches m JOIN teams t ON t.id IN (m.home_team_id, m.away_team_id)"
+        " WHERE m.league = ?", (league,)).fetchall()
+    return names | {r[0] for r in rows}
+
+
+def _has_reference_odds(row) -> bool:
+    try:
+        return all(float(row[c]) > 1.0 for c in REFERENCE_COLUMNS)
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 def import_iddaa(conn: sqlite3.Connection, file: Path, *, raw_dir: Path = RAW_DIR) -> IddaaImportResult:
@@ -149,20 +173,36 @@ def import_iddaa(conn: sqlite3.Connection, file: Path, *, raw_dir: Path = RAW_DI
             if recorded.date() > match_date:
                 raise ValueError("kayit_zamani maç tarihinden sonra olamaz")
             home, away = str(rec["ev_sahibi"]).strip(), str(rec["deplasman"]).strip()
-            fx_version, downloaded = _resolve_fixture(conn, str(rec["fikstur_dosyasi"]).strip())
+            fx_version, fx_day, uploaded = _resolve_fixture(conn, str(rec["fikstur_dosyasi"]).strip())
+            if fx_day != collection_day(recorded.date()):
+                raise ValueError(
+                    f"fikstür dosyası {fx_day} oranlarını taşıyor, kayıt {collection_day(recorded.date())} "
+                    "toplama gününe ait; o günün fikstür dosyasını kullan (#95)"
+                )
             if fx_version not in fixtures_cache:
                 fixtures_cache[fx_version] = fixture_matches(conn, fx_version, raw_dir)
             fx = fixtures_cache[fx_version]
             lg = fx[fx.Div == league]
             hit = lg[(lg.HomeTeam == home) & (lg.AwayTeam == away)]
+            has_reference = 1
             if hit.empty:
-                names = sorted(set(lg.HomeTeam) | set(lg.AwayTeam))
-                hints = [f"{n!r} -> {difflib.get_close_matches(n, names, n=1, cutoff=0.5)}"
-                         for n in (home, away) if n not in names]
-                raise ValueError(
-                    f"{home} - {away} ({league}) referans fikstür dosyasında yok."
-                    + (f" Yazım önerisi: {'; '.join(hints)}" if hints else " Takımlar doğru, maç bu dosyada yok.")
-                )
+                names = _known_teams(conn, fx, league)
+                unknown = [n for n in (home, away) if n not in names]
+                if unknown or match_date > uploaded.date():
+                    hints = [f"{n!r} -> {difflib.get_close_matches(n, sorted(names), n=1, cutoff=0.5)}" for n in unknown]
+                    raise ValueError(
+                        f"{home} - {away} ({league}) referans fikstür dosyasında yok."
+                        + (f" Yazım önerisi: {'; '.join(hints)}" if hints
+                           else " Maç dosyanın yüklenmesinden sonra oynanıyor; dosyada olmalıydı.")
+                    )
+                has_reference = 0  # #96: dosya yüklenmeden oynanmış maç (ör. Cuma akşamı)
+                result.warnings.append(
+                    f"Satır {line}: {home} - {away} ({match_date}) fikstür dosyasında yok (dosya yüklenmeden oynanmış); "
+                    "kaydedildi, teste girmez (#96)")
+            elif not _has_reference_odds(hit.iloc[0]):
+                has_reference = 0
+                result.warnings.append(
+                    f"Satır {line}: {home} - {away} dosyada var ama referans oranı (Avg 1-X-2) yok; teste girmez (#96)")
             parsed.append({
                 "recorded_at": recorded.isoformat(timespec="minutes"),
                 "league": league,
@@ -175,12 +215,13 @@ def import_iddaa(conn: sqlite3.Connection, file: Path, *, raw_dir: Path = RAW_DI
                 "price_away": _parse_price(rec["iddaa_2"], "iddaa_2"),
                 "mbs": _parse_mbs(rec["mbs"]),
                 "fixtures_version_id": fx_version,
+                "has_reference": has_reference,
                 "note": (str(rec["not"]).strip() or None) if rec["not"] is not None else None,
             })
-            if abs(recorded - downloaded) > MAX_GAP:
+            if not in_collection_window(recorded):
                 result.warnings.append(
-                    f"Satır {line}: kayıt {recorded:%Y-%m-%d %H:%M}, fikstür indirme {downloaded:%Y-%m-%d %H:%M}; "
-                    "fark 2 saatten fazla (karar #76)"
+                    f"Satır {line}: kayıt {recorded:%a %Y-%m-%d %H:%M} Cuma/Salı 17:00–19:00 aralığının dışında; "
+                    "kaydedildi, teste girmez (#93)"
                 )
         except ValueError as exc:
             errors.append(f"Satır {line}: {exc}")

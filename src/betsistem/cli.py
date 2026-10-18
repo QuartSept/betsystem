@@ -56,6 +56,8 @@ def main(argv=None) -> int:
 
     p_fx = sub.add_parser("import-fixtures", help="football-data fixtures.csv indirmesini sürümle (karar #80)")
     p_fx.add_argument("file", type=Path)
+    p_fx.add_argument("--uploaded-at", required=True,
+                      help="Sitedeki 'Latest fixtures uploaded' zamanı, İngiltere saati, örn. '17/10/26 09:35' (#94)")
     p_fx.add_argument("--downloaded-at", help="İndirme anı, TR saati 'YYYY-MM-DD HH:MM'; yoksa dosya zamanı")
 
     sub.add_parser("fixtures-log", help="Fikstür indirmeleri ve sha değişimleri (Faz 8.4)")
@@ -183,10 +185,12 @@ def main(argv=None) -> int:
             from datetime import datetime
             from betsistem.data.fixtures import TR
             when = datetime.strptime(args.downloaded_at, "%Y-%m-%d %H:%M").replace(tzinfo=TR) if args.downloaded_at else None
-            fx = import_fixtures(conn, args.file, downloaded_at=when)
+            from betsistem.data.fixtures import parse_uploaded
+            fx = import_fixtures(conn, args.file, uploaded_at=parse_uploaded(args.uploaded_at), downloaded_at=when)
             prev = (f"önceki indirme {fx.previous[0]} ({fx.previous[1]}, sha {fx.previous[2]}): "
                     + ("İÇERİK DEĞİŞTİ" if fx.previous[2] != fx.sha12 else "içerik aynı")) if fx.previous else "ilk indirme"
-            print(f"Fikstür: sürüm #{fx.data_version_id}, sha {fx.sha12}, indirme {fx.downloaded_at}; {prev}")
+            print(f"Fikstür: sürüm #{fx.data_version_id}, sha {fx.sha12}, indirme {fx.downloaded_at},"
+                  f" sitede yükleme {fx.uploaded_at}, oran toplama günü {fx.collection_day}; {prev}")
             print("  maç sayısı: " + ", ".join(f"{k} {v}" for k, v in sorted(fx.matches_by_league.items())))
             print(f"  İddaa şablonunda fikstur_dosyasi = {fx.file_name}")
         elif args.command == "faz11-feasibility":
