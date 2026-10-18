@@ -123,10 +123,10 @@ CREATE TABLE IF NOT EXISTS predictions (
     PRIMARY KEY (model, config, match_id)
 );
 
--- Kilitli final setinin açılış kaydı (karar #42). Tek satır olabilir; satır silinemez,
+-- Kilitli final setinin açılış kaydı (karar #42). Lig başına tek satır; satır silinemez,
 -- sonuç alanı yalnızca bir kez yazılabilir.
 CREATE TABLE IF NOT EXISTS final_set_runs (
-    id           INTEGER PRIMARY KEY CHECK (id = 1),
+    league       TEXT PRIMARY KEY,
     opened_at    TEXT NOT NULL,
     config       TEXT NOT NULL,
     threshold    REAL NOT NULL,
@@ -138,6 +138,6 @@ CREATE TRIGGER IF NOT EXISTS final_set_runs_no_delete BEFORE DELETE ON final_set
 BEGIN SELECT RAISE(ABORT, 'final_set_runs silinemez'); END;
 
 CREATE TRIGGER IF NOT EXISTS final_set_runs_result_once BEFORE UPDATE ON final_set_runs
-WHEN OLD.result_json IS NOT NULL OR NEW.opened_at IS NOT OLD.opened_at OR NEW.config IS NOT OLD.config
-     OR NEW.threshold IS NOT OLD.threshold
+WHEN OLD.result_json IS NOT NULL OR NEW.league IS NOT OLD.league OR NEW.opened_at IS NOT OLD.opened_at
+     OR NEW.config IS NOT OLD.config OR NEW.threshold IS NOT OLD.threshold
 BEGIN SELECT RAISE(ABORT, 'final_set_runs yalnızca sonucu bir kez yazmak için güncellenebilir'); END;

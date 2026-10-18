@@ -1,0 +1,7 @@
+{
+  "league": "B1",
+  "config": "{\"dixon_coles\": false, \"l2\": 1.0, \"window_days\": 3650, \"xg_weight\": 0.0, \"xi\": 0.003}",
+  "threshold": 0.1,
+  "n_required": 273,
+  "selected_at": "2026-10-18T16:11:59+00:00"
+}

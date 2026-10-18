@@ -86,18 +86,21 @@ def conn():
 
 def test_final_set_opens_once(conn):
     with pytest.raises(PermissionError):
-        open_final_set(conn, "{}", 0.02, "evet")
-    token = open_final_set(conn, "{}", 0.02, CONFIRM_PHRASE)
+        open_final_set(conn, "B1", "{}", 0.02, "evet")
+    token = open_final_set(conn, "B1", "{}", 0.02, CONFIRM_PHRASE)
     assert isinstance(token, FinalSetToken)
     assert_unlocked(["2324"], token)
     with pytest.raises(FinalSetAlreadyOpened):
-        open_final_set(conn, "{}", 0.02, CONFIRM_PHRASE)
+        open_final_set(conn, "B1", "{}", 0.02, CONFIRM_PHRASE)
+    open_final_set(conn, "E0", "{}", 0.02, CONFIRM_PHRASE)  # başka lig ayrı açılır
 
 
 def test_final_set_record_is_tamper_proof(conn):
-    open_final_set(conn, "{}", 0.02, CONFIRM_PHRASE)
+    open_final_set(conn, "B1", "{}", 0.02, CONFIRM_PHRASE)
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("DELETE FROM final_set_runs")
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE final_set_runs SET league = 'E0'")
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE final_set_runs SET threshold = 0.05")
     conn.execute("UPDATE final_set_runs SET result_json = '{}'")

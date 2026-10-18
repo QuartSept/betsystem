@@ -18,7 +18,17 @@ def connect(path: Path | str = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+def _migrate_final_set_runs(conn: sqlite3.Connection) -> None:
+    """Eski tek satırlık final_set_runs (id = 1) tablosunu lig bazlı tabloya çevirir; yalnızca boşsa."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(final_set_runs)")]
+    if cols and "league" not in cols:
+        if conn.execute("SELECT COUNT(*) FROM final_set_runs").fetchone()[0]:
+            raise RuntimeError("final_set_runs dolu ve eski biçimde; elle incelenmeli")
+        conn.execute("DROP TABLE final_set_runs")
+
+
 def init_db(conn: sqlite3.Connection) -> None:
+    _migrate_final_set_runs(conn)
     schema = resources.files("betsistem.data").joinpath("schema.sql").read_text(encoding="utf-8")
     conn.executescript(schema)
     conn.commit()

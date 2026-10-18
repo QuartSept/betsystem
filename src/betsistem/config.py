@@ -35,8 +35,9 @@ BET_PRICE_BOOKMAKER = "PS"  # ana fiyat; eksikse bahis yok (karar #27)
 SENSITIVITY_BOOKMAKERS = ("B365",)  # ayrıca raporlanır
 UPPER_BOUND_BOOKMAKER = "Max"  # yalnızca teorik üst sınır dipnotu
 
-# Karar #30: minimum bağımsız bahis sayısı (δ = %1,5).
+# Minimum bağımsız bahis sayısı (δ = %1,5): karar #30 (E0), karar #51 (B1).
 N_TARGET = 202
+N_TARGETS = {"E0": N_TARGET, "B1": 273}
 
 
 def season_label(code: str) -> str:

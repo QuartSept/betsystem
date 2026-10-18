@@ -62,11 +62,13 @@ def main(argv=None) -> int:
     p_pr.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz3_yeni_cikan.md")
 
     p_bs = sub.add_parser("backtest-select", help="Faz 4: model seçimi döneminde backtest ve eşik seçimi")
-    p_bs.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz4_secim.md")
+    p_bs.add_argument("--league", default="E0", choices=sorted(backtest_run.LEAGUE_MODELS))
+    p_bs.add_argument("--out", type=Path)
 
     p_bf = sub.add_parser("backtest-final", help="Faz 4: kilitli final seti TEK SEFER çalıştır (geri alınamaz)")
+    p_bf.add_argument("--league", required=True, choices=sorted(backtest_run.LEAGUE_MODELS))
     p_bf.add_argument("--confirm", required=True, help=f"Onay ifadesi: {backtest_run.CONFIRM_PHRASE!r}")
-    p_bf.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz4_final.md")
+    p_bf.add_argument("--out", type=Path)
 
     p_zip = sub.add_parser("import-zip", help="football-data sezon paketini (data.zip) yükle: tüm ligler")
     p_zip.add_argument("file", type=Path)
@@ -126,14 +128,16 @@ def main(argv=None) -> int:
             args.out.write_text(experiments.render_promoted_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
         elif args.command == "backtest-select":
-            args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(backtest_run.selection_report(conn), encoding="utf-8")
-            print(f"Rapor yazıldı: {args.out} (seçim: {backtest_run.SELECTION_FILE})")
+            out = args.out or PROJECT_ROOT / "reports" / (
+                "faz4_secim.md" if args.league == "E0" else f"faz4_secim_{args.league}.md")
+            out.write_text(backtest_run.selection_report(conn, args.league), encoding="utf-8")
+            print(f"Rapor yazıldı: {out} (seçim: {backtest_run.selection_file(args.league)})")
         elif args.command == "backtest-final":
-            report = backtest_run.final_report(conn, args.confirm)
-            args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(report, encoding="utf-8")
-            print(f"Rapor yazıldı: {args.out}")
+            report = backtest_run.final_report(conn, args.league, args.confirm)
+            out = args.out or PROJECT_ROOT / "reports" / (
+                "faz4_final.md" if args.league == "E0" else f"faz4_final_{args.league}.md")
+            out.write_text(report, encoding="utf-8")
+            print(f"Rapor yazıldı: {out}")
         elif args.command == "import-zip":
             for league, version_id in import_football_data_zip(conn, args.file, args.season):
                 res = load_football_data(conn, version_id)

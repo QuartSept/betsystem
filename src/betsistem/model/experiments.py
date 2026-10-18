@@ -202,6 +202,8 @@ def render_report(conn: sqlite3.Connection) -> str:
 
 # Karar #35: Faz 3'te seçilen model.
 FAZ3_MODEL = ModelConfig(window_days=LONG_WINDOW, xi=0.001, xg_weight=0.5)
+# Lig başına Faz 3 modeli: karar #35 (E0), karar #50 (B1).
+LEAGUE_MODELS = {"E0": FAZ3_MODEL, "B1": ModelConfig(window_days=LONG_WINDOW, xi=0.003)}
 
 
 def render_promoted_report(conn: sqlite3.Connection) -> str:
