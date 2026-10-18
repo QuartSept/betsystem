@@ -2,6 +2,8 @@
 
 Futbol bahis analiz sistemi. Amaç ve kurallar: [docs/yol-plani.md](docs/yol-plani.md).
 
+**Durum:** Proje Faz 7 kararıyla durduruldu: model piyasayı yenmiyor (karar #53). Özet: [reports/sonuc_raporu.md](reports/sonuc_raporu.md). Kilitli final setleri açılmadı.
+
 ## Kurulum
 
 ```powershell

@@ -147,6 +147,7 @@ Karar, önceden yazılmış bu kurallarla verilir; sonuçları gördükten sonra
 
 - Gerçek parayla başlanırsa aylık değerlendirme yapılır; CLV pozitif kalmazsa bahis durdurulur.
 - "Piyasa bizden iyi" sonucu da değerli bir sonuçtur.
+- **Karar (18 Ekim 2026, karar #53):** Katman 1 sonucu **Hayır**: model piyasayı yenmiyor. Premier League (karar #43) ve Belçika (karar #52) seçim dönemlerinde CLV negatif; Hollanda hareket testini geçemedi (karar #50). Tablonun kuralı uygulanır: **durdurulur**. Katman 2 (İddaa) test edilmedi, gerçek para kullanılmaz. Kilitli final setleri açılmadı ve kilitli kalır. Ayrıntılı özet: `reports/sonuc_raporu.md`.
 
 ## Karar kaydı
 
@@ -206,6 +207,7 @@ Projede bugüne kadar alınan tüm kararlar; hepsi 18 Ekim 2026'da kesinleşti. 
 | 50 | Yeni lig sonuçları (karar #48): **B1** Faz 3 modeli Poisson + zaman ağırlığı (ξ = 0,003), Dixon-Coles elendi; PS erkene göre log-loss +0,016 (%95 GA 0,004…0,027). Hareket testi **geçti**: eğim 0,047 (alt sınır 0,018). Eğim üç sezonda da pozitif (0,010; 0,062; 0,091), en güçlü olduğu yer iç kontrol sezonu 2022/23; en çok beraberlikte (eğim 0,118). **N1** Faz 3 modeli Poisson + Dixon-Coles, zaman ağırlığı elendi; PS erkene göre +0,022. Hareket testi **geçemedi**: eğim 0,010 (alt sınır −0,016). N1 için çalışma durur | Faz 2–4 |
 | 51 | B1 için N (karar #48 yöntemiyle, 2019/20–2022/23, Pinnacle erken, δ = %1,5): σ = 0,0995, **N = 273**. Rastgele bahsin beklenen CLV'si −%4,0 (Premier League −%1,9) | Faz 4 |
 | 52 | B1 Faz 4 seçim dönemi sonucu (karar #38–#42, N = 273): geçme şartı **sağlanmadı**. Seçilen eşik 0,10, 479 bahis: ortalama CLV −0,0284 (tek yönlü alt sınır −0,0377), ROI −0,002. Üç sezonda da CLV negatif. Rastgele bahsin beklenen CLV'si −0,040: model sinyali CLV'yi yaklaşık 1,2 puan iyileştiriyor ama %4,1'lik erken marjı aşmıyor. B365 duyarlılığı −0,0515. B1 kilitli final seti açılmadı | Faz 4 |
+| 53 | Faz 7 kararı: model piyasayı yenmiyor (Katman 1: Hayır). Proje durdurulur; gerçek para yok. Premier League ve Belçika kilitli final setleri (2023/24–2024/25) açılmadı ve kilitli kalır; ileride önceden kaydedilmiş yeni bir model için bağımsız doğrulama verisi olarak saklanır. Sonuç raporu: `reports/sonuc_raporu.md` | Faz 7 |
 
 ## Riskler ve gerçekçi beklentiler
 
@@ -219,16 +221,16 @@ Bu tür sistemleri kuranların büyük çoğunluğu piyasayı uzun vadede yenemi
 - **Aşırı uyum:** Çok fazla değişken veya alt grup denemek, geçmişte harika, gelecekte kötü sonuç veren bir model üretir. Kilitli final set buna karşı korumadır.
 - **Bağımlılık riski:** Kayıpları kovalamamak için kasa ve kurallar önceden yazılır ve değiştirilmez.
 
-**Sonraki adım:** Faz 4 – geriye dönük test (eşik seçimi, CLV, ROI, kilitli final set).
+**Durum:** Proje Faz 7 kararıyla durduruldu (karar #53): model piyasayı yenmiyor. Sonuç raporu: `reports/sonuc_raporu.md`.
 
 - [x] Faz 0: Kurallar (donduruldu)
 - [x] Faz 1: Veri altyapısı
 - [x] Faz 2: Basit model
 - [x] Faz 3: Gelişmiş model
-- [ ] Faz 4: Geriye dönük test
-- [ ] Faz 5: Ek veriler
-- [ ] Faz 6: Canlı kâğıt testi
-- [ ] Faz 7: Karar
+- [x] Faz 4: Geriye dönük test (seçim döneminde geçme şartı sağlanmadı; final setler kilitli)
+- [ ] Faz 5: Ek veriler (yapılmadı; Faz 4 kapısı geçilemedi)
+- [ ] Faz 6: Canlı kâğıt testi (yapılmadı)
+- [x] Faz 7: Karar – durdur (karar #53)
 
 ## Kaynaklar
 
