@@ -36,8 +36,18 @@ def _prepare_odds_migration(conn: sqlite3.Connection) -> bool:
     return True
 
 
+def _migrate_iddaa_log(conn: sqlite3.Connection) -> None:
+    """Eski iddaa_odds_log (lig/MBS/fikstür sürümü olmayan) boşsa kaldırılır; doluysa elle incelenmeli."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(iddaa_odds_log)")]
+    if cols and "fixtures_version_id" not in cols:
+        if conn.execute("SELECT COUNT(*) FROM iddaa_odds_log").fetchone()[0]:
+            raise RuntimeError("iddaa_odds_log dolu ve eski biçimde; elle incelenmeli")
+        conn.execute("DROP TABLE iddaa_odds_log")
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     _migrate_final_set_runs(conn)
+    _migrate_iddaa_log(conn)
     migrate_odds = _prepare_odds_migration(conn)
     schema = resources.files("betsistem.data").joinpath("schema.sql").read_text(encoding="utf-8")
     conn.executescript(schema)

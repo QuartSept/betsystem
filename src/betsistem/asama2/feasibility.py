@@ -16,6 +16,7 @@ from betsistem.config import MARKET_1X2, MARKET_OU25
 from betsistem.model.experiments import LEAGUE_MODELS
 from betsistem.model.market import market_prices, remove_margin
 from betsistem.model.predict import ModelConfig, load_matches, walk_forward
+from betsistem.model.timeline import assert_unlocked
 
 ALPHA_FAZ10 = 0.05 / 3  # karar #72
 DELTA = 0.015
@@ -64,6 +65,7 @@ def _n(values: list[np.ndarray]) -> tuple[float, int]:
 
 def feasibility_10a(conn, leagues=("E0", "T1"), seasons=MODELLESS_SEASONS) -> Feasibility:
     """10a: o_B365 / o_adil (marjsız Avg erken) oranı en yüksek sonuç; oran > 1 + k ise bahis."""
+    assert_unlocked(seasons)
     best, sig, total = [], [], 0
     for lg in leagues:
         b365 = _snapshot(conn, "B365", lg, "early")
@@ -98,6 +100,7 @@ def model_ou_probabilities(conn, league: str, config: ModelConfig, seasons=MODEL
 
 def feasibility_10c(conn, leagues=("E0", "B1"), seasons=MODEL_SEASONS) -> Feasibility:
     """10c: model P(üst/alt) × Pinnacle alt/üst erken oranı − 1 en yüksek taraf; > eşik ise bahis."""
+    assert_unlocked(seasons)
     edges, sig, total = [], [], 0
     for lg in leagues:
         model = model_ou_probabilities(conn, lg, LEAGUE_MODELS[lg], seasons)
@@ -121,6 +124,7 @@ def feasibility_10d(conn, leagues=("T1", "F2", "I2", "E2", "E3"), seasons=MODEL_
     Gerçek test her ligde Faz 3 boru hattıyla seçilen modeli kullanır. Fizibilite, ayar seçimi gerektirmeyen
     Faz 2 temel modeliyle (ModelConfig()) yaklaşık olarak hesaplanır; sayılar bu nedenle yaklaşıktır.
     """
+    assert_unlocked(seasons)
     edges, sig, total = [], [], 0
     for lg in leagues:
         preds = walk_forward(load_matches(conn, lg), seasons, ModelConfig()).set_index("match_id")

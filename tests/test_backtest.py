@@ -113,3 +113,31 @@ def test_locked_seasons_need_token():
         assert_unlocked(["2425"])
     with pytest.raises(LockedSeasonError):
         walk_forward(pd.DataFrame(columns=["season", "home", "away", "match_date", "fthg", "ftag"]), ["2425"])
+
+
+def test_faz11_window_locked(conn):
+    from betsistem.asama2.faz11 import CONFIRM_PHRASE as P11, Faz11AlreadyOpened, open_faz11_window
+    from betsistem.model.timeline import Faz11Token
+    with pytest.raises(LockedSeasonError, match="Faz 11"):
+        assert_unlocked(["2223", "2526"])
+    with pytest.raises(LockedSeasonError):
+        assert_unlocked(["2627"], FinalSetToken("E0"))  # final set izni pencereyi açmaz
+    with pytest.raises(PermissionError):
+        open_faz11_window(conn, "10a", "{}", "evet")
+    token = open_faz11_window(conn, "10a", "{}", P11)
+    assert isinstance(token, Faz11Token)
+    assert_unlocked(["2526", "2627"], token)
+    with pytest.raises(Faz11AlreadyOpened):
+        open_faz11_window(conn, "10a", "{}", P11)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("DELETE FROM faz11_runs")
+
+
+def test_faz10_runs_once(conn):
+    from betsistem.asama2.faz10 import Faz10AlreadyRun, _assert_not_run
+    _assert_not_run(conn)
+    conn.execute("INSERT INTO faz10_runs (test, run_at, result) VALUES ('10a', 'x', 'y')")
+    with pytest.raises(Faz10AlreadyRun):
+        _assert_not_run(conn)
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("UPDATE faz10_runs SET result = 'z'")

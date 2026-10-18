@@ -10,7 +10,7 @@ gününden önce oynanmış maçları görür; karar günü oynanan maçlar da h
 
 from datetime import date, timedelta
 
-from betsistem.config import FINAL_TEST_SEASONS
+from betsistem.config import FAZ11_WINDOW_SEASONS, FINAL_TEST_SEASONS
 
 FRIDAY, TUESDAY = 4, 1
 _WEEKEND = {4, 5, 6, 0}  # Cuma, Cumartesi, Pazar, Pazartesi
@@ -33,7 +33,23 @@ class FinalSetToken:
         self.run_id = run_id
 
 
-def assert_unlocked(seasons, token: FinalSetToken | None = None) -> None:
-    locked = sorted(set(seasons) & set(FINAL_TEST_SEASONS))
+class Faz11Token:
+    """Faz 11 penceresine fikir başına tek seferlik erişim izni. Yalnızca asama2.faz11.open_faz11_window
+    üretir; açılış veritabanına kalıcı olarak kaydedilir ve ikinci açılış reddedilir (karar #81)."""
+
+    def __init__(self, idea: str):
+        self.idea = idea
+
+
+def assert_unlocked(seasons, token: FinalSetToken | Faz11Token | None = None) -> None:
+    """Kilitli final sezonları FinalSetToken, Faz 11 penceresi Faz11Token olmadan kullanılamaz.
+
+    Kilit, sonuç/CLV/kural çıktısı üreten kod yolları içindir; doluluk ölçümü (8.5) bu fonksiyonu çağırmaz.
+    """
+    seasons = set(seasons)
+    locked = sorted(seasons & set(FINAL_TEST_SEASONS))
     if locked and not isinstance(token, FinalSetToken):
         raise LockedSeasonError(f"Kilitli final sezonları kullanılamaz: {locked}")
+    window = sorted(seasons & set(FAZ11_WINDOW_SEASONS))
+    if window and not isinstance(token, Faz11Token):
+        raise LockedSeasonError(f"Faz 11 penceresi kilitli (karar #81): {window}")

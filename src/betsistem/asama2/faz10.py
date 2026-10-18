@@ -26,7 +26,7 @@ from betsistem.config import MARKET_1X2, MARKET_OU25, season_label
 from betsistem.model.experiments import LEAGUE_MODELS, run as faz3_run
 from betsistem.model.market import market_prices, remove_margin
 from betsistem.model.movement import MovementResult, movement_test
-from betsistem.model.timeline import decision_date
+from betsistem.model.timeline import assert_unlocked, decision_date
 from betsistem.report import markdown_table as _md
 
 X12 = ["H", "D", "A"]
@@ -74,6 +74,25 @@ def _breakdown(settled: pd.DataFrame) -> list[dict]:
     return rows
 
 
+class Faz10AlreadyRun(Exception):
+    pass
+
+
+def _assert_not_run(conn) -> None:
+    done = [r[0] for r in conn.execute("SELECT test FROM faz10_runs")]
+    if done:
+        raise Faz10AlreadyRun(f"Faz 10 testleri daha önce çalıştırıldı ({', '.join(done)}); ikinci çalıştırma yapılamaz (#83).")
+
+
+def _record_runs(conn, results) -> None:
+    from betsistem.asama2.faz11 import _git_commit
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with conn:
+        for r in results:
+            conn.execute("INSERT INTO faz10_runs (test, run_at, git_commit, result) VALUES (?, ?, ?, ?)",
+                         (r.name, now, _git_commit(), r.verdict))
+
+
 @dataclass
 class TestResult:
     name: str
@@ -86,6 +105,7 @@ class TestResult:
 
 def _rule_10a(conn, soft: str, fair_source: str, leagues, seasons) -> tuple[pd.DataFrame, pd.Series]:
     """Maç başına o_soft × p_adil en yüksek sonuç; tüm maçlar (eşik sonra uygulanır)."""
+    assert_unlocked(seasons)
     frames, results = [], []
     for lg in leagues:
         soft_e = _snap(conn, soft, lg, "early")
@@ -291,7 +311,9 @@ def run_10d(conn: sqlite3.Connection) -> TestResult:
 
 
 def render_report(conn: sqlite3.Connection) -> tuple[str, list[TestResult]]:
+    _assert_not_run(conn)
     results = [run_10a(conn), run_10c(conn), run_10d(conn)]
+    _record_runs(conn, results)
     parts = [
         "# Faz 10 sonuçları",
         f"Oluşturulma: {datetime.now(timezone.utc).isoformat(timespec='seconds')} (UTC). Ön kayıtlar: "

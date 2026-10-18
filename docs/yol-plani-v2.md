@@ -65,10 +65,10 @@ Faz 8 → 9 → 10 → 11 → 12. Faz 9 ve 10 paralel yürüyebilir. En kritik f
 
 ## Fizibilite kapısı (karar #71)
 
-Aşama 1'in dersi: bir test, geçme şartını matematiksel olarak sağlayamayacak kadar az bahis üretiyorsa çalıştırmanın anlamı yoktur, ama sonucuna bakmak yine de yanıltıcı fikirler doğurur. Bu yüzden Faz 10, 11 ve 12'deki her test, **sonuçlara ve kapanış oranlarına bakmadan, yalnızca fiyat ilişkilerinden** önce bir fizibilite kontrolünden geçer:
+Aşama 1'in dersi: bir test, geçme şartını matematiksel olarak sağlayamayacak kadar az bahis üretiyorsa çalıştırmanın anlamı yoktur, ama sonucuna bakmak yine de yanıltıcı fikirler doğurur. Bu yüzden Faz 10, 11 ve 12'deki her test, **kuralın seçtiği bahislerin CLV'sine ve maç sonuçlarına bakmadan** önce bir fizibilite kontrolünden geçer (#82):
 
 - Değerlendirme dönemindeki beklenen bahis sayısı, testin kendi α'sıyla hesaplanan N'den küçükse test **"yetersiz güç"** olarak raporlanır ve sonuç analizi yapılmaz. Bu, başarısızlık değil, değerlendirilemezlik kaydıdır.
-- σ, N için Aşama 1 yöntemiyle (erken fiyat × marjsız kapanış − 1, maç başına tek sonuç) hesaplanır. Bu σ CLV dağılımının genişliğidir, bahis kuralının başarısını göstermez.
+- Kullanılanlar: erken fiyatlar, model olasılıkları ve σ vekili. σ, N için Aşama 1 yöntemiyle (erken fiyat × marjsız kapanış − 1, maç başına tek sonuç) hesaplanır; yani kapanış oranını kullanır, ama kuralın seçtiği bahislerden bağımsızdır ve kuralın başarısını göstermez.
 - Kontrolün sonucu, testin ön kayıt commit'ine yazılır.
 
 ## Faz 8 – Uygulanabilirlik kontrolleri
@@ -87,7 +87,7 @@ Amaç: Emek isteyen işlere başlamadan, İddaa'da bu stratejinin uygulanabilir 
 
 **Hedef ligler (ön kayıt):** Premier League (E0) ve Süper Lig (T1). T1, lig taramasında üçüncü sırada çıktı ve yerel bir lig olarak İddaa katmanı için en anlamlı aday. Başka bir lig ancak 8.1'de MBS 1 maç oranı yeterliyse eklenir.
 
-**Kayıt formatı (8.2 ve 8.7):** maç, lig, kayıt zamanı, İddaa 1-X-2 oranları, MBS, referans dosyanın sürümü (sha) ve indirilme zamanı. Depodaki yalnızca eklemeye izin veren İddaa tablosu kullanılır.
+**Kayıt formatı (8.2 ve 8.7, #79):** tek şablon `templates/iddaa_kayit_sablonu.xlsx`: kayıt zamanı, lig, maç tarihi/saati, ev ve deplasman (football-data yazımı), İddaa 1-X-2 oranları, MBS, referans fikstür dosyasının adı. Fikstür dosyası önce `betsistem import-fixtures` ile sürümlenir (#80); kayıtlar `betsistem import-iddaa` ile yalnızca eklemeye izin veren tabloya yazılır.
 
 **Geçme şartı:**
 
@@ -218,7 +218,7 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 68 | Karar tablosu bu plandaki gibi; modelsiz İddaa kuralında yalnızca Katman 2 aranır | Faz 12 |
 | 69 | Kilitli final setler (#44) Aşama 2'de açılmaz | Kurallar |
 | 70 | Çalışma düzeni: kararlar ve planlama Claude ile bu planda; kod depoda; her yeni karar önce bu kayda eklenir | Genel |
-| 71 | Fizibilite kapısı: Faz 10, 11 ve 12'deki her test, sonuçlara ve kapanışa bakmadan, yalnızca fiyat ilişkilerinden beklenen bahis sayısını N ile karşılaştırır; N'nin altındaysa test "yetersiz güç" olarak raporlanır ve sonuç analizi yapılmaz | Fizibilite |
+| 71 | Fizibilite kapısı: Faz 10, 11 ve 12'deki her test, kuralın seçtiği bahislerin CLV'sine ve maç sonuçlarına bakmadan beklenen bahis sayısını N ile karşılaştırır (σ vekili kapanış oranını kullanır; ifade #82 ile düzeltildi); N'nin altındaysa test "yetersiz güç" olarak raporlanır ve sonuç analizi yapılmaz | Fizibilite |
 | 72 | α düzeltmesi Faz 10'un tüm nihai kararlarına uygulanır (yalnız hareket testine değil); Faz 11'de α = 0,05 / giren fikir sayısı; Faz 12'de α = 0,05 | Faz 10–12 |
 | 73 | 10a modelsiz olduğu için dönemi 2019/20–2022/23 (ısınma yok). Ön fizibilite: N = 361; bahis sayısı k = 0 / 0,01 / 0,02 / 0,03 için 384 / 248 / 181 / 127; yalnızca k = 0 fizibil | Faz 10 |
 | 74 | 10b ("piyasa + model birleşimi") çıkarıldı: Belçika eğimiyle (0,047) birleşik olasılığın piyasadan sapması ≈ 0,4 puan, Pinnacle erken marjı %4,1; kural kurgusu gereği bahis üretemez | Faz 10 |
@@ -226,13 +226,19 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 76 | Faz 12 zamanlaması ve eşik: referans, fikstür dosyasının haftalık güncellemesinden sonraki ilk indirme (sha ve zaman kaydedilir), İddaa kaydı bu andan en çok ±2 saat; e ∈ {%2; %1; %0} içinden öngörülen bahis sayısının N'ye en çok iki sezonda ulaştığı en büyük değer; hiçbiri ulaşmazsa Faz 12 test olarak yapılmaz | Faz 12 |
 | 77 | Faz 10 ön kayıtları sonuçlardan önce commit edildi: 10a `docs/on-kayit/faz10_10a.md` (3a4f8d2; N = 361, yalnız k = 0 fizibil), 10c `faz10_10c.md` (03c39d1; N = 155, tüm eşikler fizibil), 10d `faz10_10d.md` (1ade138; N = 111, tüm eşikler fizibil, sayılar Faz 2 modeliyle yaklaşık). Alt/üst oranları yükleyiciye eklendi (93a3ab0) | Faz 10 |
 | 78 | Faz 10 sonuçları (`reports/faz10_sonuclar.md`): **10a geçti** (k = 0, 384 bahis, ortalama CLV +0,0391, tek yönlü alt sınır +0,0239; sekiz lig-sezonun hepsinde pozitif). Sonradan yapılan tanı: Shin ve power marj çıkarma yöntemleriyle CLV +0,0149 / +0,0062 ve alt sınır sıfırın altında; etki kısmen oransal yöntem varsayımından kaynaklanıyor olabilir. **10c geçmedi:** hareket testi geçti (eğim 0,063; B1'de 0,088, E0'da 0,015), CLV −0,0205. **10d geçmedi:** beraberlik hareket etkisi beş ligin beşinde tekrarlandı (birleşik eğim 0,057, alt sınır 0,043), CLV −0,0218. Faz 11'e yalnızca 10a gider; Faz 11 kullanıcı onayı beklenir | Faz 10 |
+| 79 | Tek İddaa şablonu: `templates/iddaa_kayit_sablonu.xlsx` (Excel; Türkçe Excel'de CSV'nin ondalık virgül sorunu nedeniyle). CSV şablonu kaldırıldı. Takım adları football-data yazımıyla girilir ve her satır, `fikstur_dosyasi` sütunundaki referans fikstür dosyasında birebir bulunan bir maçla eşleşmek zorundadır. `iddaa_odds_log`'a `league`, `mbs` ve `fixtures_version_id` (referans fikstür dosyasının veri sürümü) eklendi; `data_version_id` kaydın geldiği Excel dosyasıdır. Kayıt zamanı Türkiye saati (+03:00). Hatalı satır varsa dosyanın hiçbir satırı yazılmaz. Fikstür indirmesinden 2 saatten uzak kayıt uyarıyla kaydedilir; #76 kuralı analizde uygulanır | Faz 8, 9, 12 |
+| 80 | Fikstür sürümleme: her indirilen fixtures.csv `betsistem import-fixtures` ile içerik olarak `data_versions`'a (sha256), indirme olarak `fixture_downloads`'a (dosya adı, indirme zamanı) eklenir. Aynı içerik tek sürümdür, her indirme ayrı satırdır. 8.4'teki Cuma güncelleme saati `betsistem fixtures-log`'daki ardışık sha değişimlerinden okunur | Faz 8, 12 |
+| 81 | Faz 11 penceresi şimdiden kilitli: 2025/26 ve 2026/27 sezonlarının tamamı (pencere 31 Aralık 2026'da bitse de ihtiyaten tüm sezon). Sonuç, CLV veya kural çıktısı üreten kod yolları (`assert_unlocked`) Faz 11 izni ister; izin fikir başına bir kez `faz11_runs`'a kaydedilerek verilir ve ikinci açılışı kod reddeder. 8.5 için yalnızca doluluk ölçülür (`window_coverage`); kalite raporundaki Pinnacle marj ve hareket istatistikleri pencereyi dışarıda bırakır | Faz 8, 11 |
+| 82 | #71'in ifadesi düzeltildi: fizibilite, "kapanışa bakmadan" değil, "kuralın seçtiği bahislerin CLV'sine ve sonuçlara bakmadan" yapılır; σ vekili kapanış oranını kullanır | Fizibilite |
+| 83 | Faz 10 testleri birer kez çalıştırıldı (2026-10-18 17:24 UTC, çalıştırıcı c41520b, sonuçlar 5e1e824); üçü de raporlandı. Çalıştırma `faz10_runs`'a kayıtlı, ikinci çalıştırmayı kod reddeder. Eşik aynı dönemde seçildiği için geçen sonuç iyimser olabilir (10a'da tek fizibil eşik k = 0 olduğundan seçim etkisi sınırlı; asıl risk #78'deki marj yöntemi duyarlılığı). Faz 11'e kadar hiçbir ayar değiştirilmez; sonuçlar planlamaya getirilir | Faz 10 |
 
 ## İlk adımlar
 
 Sıra, en ucuz ve en belirleyici kontrollerden başlıyor.
 
 - [x] #54–#76'yı `docs/yol-plani.md`'ye işle ve commit'le
-- [ ] 8.4: Haftalık fikstür dosyasının sütunlarını ve Cuma güncelleme zamanını doğrula (BFE = Betfair Exchange notes.txt'den doğrulandı)
+- [ ] 8.4: Haftalık fikstür dosyasının sütunlarını doğrula; Cuma güncelleme zamanı `fixtures-log`'daki sha değişimlerinden okunacak (#80). BFE = Betfair Exchange notes.txt'den doğrulandı
+- [x] Tek İddaa şablonu ve içe aktarma (#79), fikstür sürümleme (#80), Faz 11 kilidi (#81), Faz 10 tek çalıştırma kaydı (#83)
 - [ ] 8.3: İddaa kullanım koşullarını oku, kayıt yöntemini yaz
 - [ ] 8.1 ve 8.2: Bu Cuma'dan itibaren E0 ve T1 için İddaa oranlarını ve MBS'yi kaydetmeye başla (2–3 hafta)
 - [ ] 8.5 ve 8.6: Faz 11 liglerinin 2025/26–2026/27 CSV'lerini indir; veri kalite raporuna BFE doluluğunu ve B1 2022/23 veri hatası kontrolünü ekle

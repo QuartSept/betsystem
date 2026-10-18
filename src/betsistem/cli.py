@@ -7,6 +7,7 @@ from pathlib import Path
 from betsistem.config import DB_PATH, LEAGUES, PROJECT_ROOT, PROTOTYPE_SEASON, season_label
 from betsistem.data.db import UnknownTeamError, connect, init_db
 from betsistem.data.football_data import load_football_data
+from betsistem.data.fixtures import fixtures_log, import_fixtures
 from betsistem.data.iddaa import import_iddaa
 from betsistem.asama2 import faz10
 from betsistem.backtest import run as backtest_run
@@ -50,8 +51,14 @@ def main(argv=None) -> int:
     p_n = sub.add_parser("sample-size", help="Minimum bahis sayısı N raporunu yaz (model seçimi dönemi)")
     p_n.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "n_hedefi.md")
 
-    p_iddaa = sub.add_parser("import-iddaa", help="Elle tutulan İddaa oran CSV'sini ekle (templates/iddaa_oranlari.csv)")
+    p_iddaa = sub.add_parser("import-iddaa", help="İddaa kayıt Excel'ini ekle (templates/iddaa_kayit_sablonu.xlsx)")
     p_iddaa.add_argument("file", type=Path)
+
+    p_fx = sub.add_parser("import-fixtures", help="football-data fixtures.csv indirmesini sürümle (karar #80)")
+    p_fx.add_argument("file", type=Path)
+    p_fx.add_argument("--downloaded-at", help="İndirme anı, TR saati 'YYYY-MM-DD HH:MM'; yoksa dosya zamanı")
+
+    sub.add_parser("fixtures-log", help="Fikstür indirmeleri ve sha değişimleri (Faz 8.4)")
 
     p_m = sub.add_parser("model-report", help="Faz 2: walk-forward Poisson tahmini ve piyasa karşılaştırma raporu")
     p_m.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "faz2_poisson.md")
@@ -159,7 +166,7 @@ def main(argv=None) -> int:
                 print(f"{league}: model {res['final'].key()}, hareket eğimi {mv.slope:.4f}"
                       f" (alt sınır {mv.lo_one_sided:.4f}) {'GEÇTİ' if mv.passes else 'geçemedi'} -> {out}")
         elif args.command == "faz10-run":
-            text, results = faz10.render_report(conn)
+            text, results = faz10.render_report(conn)  # tek seferlik (karar #83)
             args.out.write_text(text, encoding="utf-8")
             for r in results:
                 print(f"{r.name}: {r.verdict}")
@@ -167,7 +174,22 @@ def main(argv=None) -> int:
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)
             print(f"İddaa: {res.added} yeni kayıt, {res.already_present} zaten vardı")
-    except (RawDataError, UnknownTeamError, PermissionError, backtest_run.FinalSetAlreadyOpened) as exc:
+            for w in res.warnings:
+                print(f"  UYARI: {w}")
+        elif args.command == "import-fixtures":
+            from datetime import datetime
+            from betsistem.data.fixtures import TR
+            when = datetime.strptime(args.downloaded_at, "%Y-%m-%d %H:%M").replace(tzinfo=TR) if args.downloaded_at else None
+            fx = import_fixtures(conn, args.file, downloaded_at=when)
+            prev = (f"önceki indirme {fx.previous[0]} ({fx.previous[1]}, sha {fx.previous[2]}): "
+                    + ("İÇERİK DEĞİŞTİ" if fx.previous[2] != fx.sha12 else "içerik aynı")) if fx.previous else "ilk indirme"
+            print(f"Fikstür: sürüm #{fx.data_version_id}, sha {fx.sha12}, indirme {fx.downloaded_at}; {prev}")
+            print("  maç sayısı: " + ", ".join(f"{k} {v}" for k, v in sorted(fx.matches_by_league.items())))
+            print(f"  İddaa şablonunda fikstur_dosyasi = {fx.file_name}")
+        elif args.command == "fixtures-log":
+            print(fixtures_log(conn).to_string(index=False))
+    except (RawDataError, UnknownTeamError, PermissionError, backtest_run.FinalSetAlreadyOpened,
+            faz10.Faz10AlreadyRun) as exc:
         print(f"HATA: {exc}", file=sys.stderr)
         return 1
     finally:

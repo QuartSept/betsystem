@@ -48,8 +48,10 @@ Her ham dosya `data_versions` tablosuna kaynak, sha256 ve edinme zamanıyla kayd
 .venv\Scripts\betsistem import-zip data_2122.zip --season 2122
 .venv\Scripts\betsistem league-screen
 
-# İddaa oranları (elle tutulan, birikimli CSV; şablon: templates/iddaa_oranlari.csv)
-.venv\Scripts\betsistem import-iddaa iddaa_oranlari.csv
+# Haftalık: fikstür dosyasını sürümle, sonra İddaa kayıtlarını ekle (şablon: templates/iddaa_kayit_sablonu.xlsx)
+.venv\Scripts\betsistem import-fixtures fixtures_20261023_1930.csv
+.venv\Scripts\betsistem import-iddaa iddaa_kayitlari.xlsx
+.venv\Scripts\betsistem fixtures-log
 ```
 
 Understat takım adları `src/betsistem/data/team_aliases.csv` ile football-data adlarına eşlenir.
@@ -57,14 +59,13 @@ Eşleşmeyen ad olursa yükleme hiçbir şey yazmadan durur; eşleşme bu dosyay
 
 ### İddaa kayıtları
 
-Her satır, oranın görüldüğü anı (`recorded_at`, saat dilimiyle: `2026-10-16T15:30+03:00`) taşır.
-Kayıtlar veritabanında yalnızca eklenir; aynı an ve maç için farklı oran gelirse içe aktarma durur.
-Düzeltme gerekiyorsa yeni bir `recorded_at` ile yeni satır eklenir.
+Tek şablon: `templates/iddaa_kayit_sablonu.xlsx` (karar #79). Talimatlar şablonun "Nasıl" sayfasında.
 
-```text
-recorded_at,match_date,kickoff_time,home_team,away_team,price_home,price_draw,price_away,note
-2026-10-16T15:30+03:00,2026-10-18,17:00,Arsenal,Chelsea,1.85,3.60,4.10,
-```
+- Takım adları football-data yazımıyla girilir; her satır, `fikstur_dosyasi` sütununda adı yazılan ve önce
+  `import-fixtures` ile yüklenmiş fikstür dosyasındaki bir maçla eşleşmek zorundadır. Yazım yanlışsa öneri verilir.
+- Kayıt zamanı Türkiye saatidir. Ondalık için virgül ya da nokta kullanılabilir.
+- Hatalı satır varsa dosyanın hiçbir satırı yazılmaz. Kayıtlar yalnızca eklenir; düzeltme yeni kayıt zamanıyla.
+- Fikstür dosyalarının her indirmesi kaydedilir; `fixtures-log` içeriğin ne zaman değiştiğini gösterir (8.4).
 
 ### Erişim
 

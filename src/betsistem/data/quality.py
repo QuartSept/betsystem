@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from betsistem.config import BET_PRICE_BOOKMAKER, is_final_test_season, season_label
+from betsistem.config import BET_PRICE_BOOKMAKER, FAZ11_WINDOW_SEASONS, is_final_test_season, season_label
 from betsistem.model.market import fair_probabilities
 from betsistem.report import markdown_table as _md
 
@@ -102,6 +102,7 @@ def bet_price_missing(conn: sqlite3.Connection, bookmaker: str = BET_PRICE_BOOKM
 
 def pinnacle_consistency(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.DataFrame]:
     ps = fair_probabilities(conn, "PS")
+    ps = ps[~ps.season.isin(FAZ11_WINDOW_SEASONS)]  # karar #81: pencerede yalnızca doluluk
     if ps.empty:
         return pd.DataFrame(), pd.DataFrame()
 
@@ -118,6 +119,7 @@ def pinnacle_consistency(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.Dat
     move = (close - early).abs().max(axis=1).dropna().rename("max_move").reset_index()
 
     avg = fair_probabilities(conn, "Avg")
+    avg = avg[~avg.season.isin(FAZ11_WINDOW_SEASONS)]
     gap = pd.DataFrame()
     if not avg.empty:
         a = avg.set_index(["match_id", "season", "timing"])[["H", "D", "A"]]
@@ -146,6 +148,11 @@ def data_versions(conn: sqlite3.Connection) -> pd.DataFrame:
         " FROM data_versions ORDER BY source, season, id",
         conn,
     )
+
+
+def _window_coverage(conn):
+    from betsistem.asama2.faz11 import window_coverage
+    return window_coverage(conn)
 
 
 def render_report(conn: sqlite3.Connection) -> str:
@@ -177,6 +184,10 @@ def render_report(conn: sqlite3.Connection) -> str:
         f"`max_move`: erken ile kapanış arasında marjsız olasılığın en büyük değişimi. "
         f"`ps_vs_avg_gap`: Pinnacle ile piyasa ortalamasının marjsız olasılık farkı (aynı zaman dilimi).",
         _md(checks),
+        "## Faz 11 penceresi: yalnızca doluluk (8.5, karar #81)",
+        "2025/26–2026/27 kilitli. Burada yalnızca tam 1-X-2 oranı bulunan maçların oranı sayılır; "
+        "oran değerleri, CLV, sonuçlar veya kural çıktıları hesaplanmaz.",
+        _md(_window_coverage(conn)),
         "## Veri sürümleri",
         _md(data_versions(conn)),
     ]

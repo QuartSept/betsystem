@@ -1,6 +1,6 @@
 # Veri kalite raporu
 
-Oluşturulma: 2026-10-18T15:57:15+00:00 (UTC). Bu rapor yalnızca veri kalitesine bakar; sonuç veya getiri içermez.
+Oluşturulma: 2026-10-18T17:32:27+00:00 (UTC). Bu rapor yalnızca veri kalitesine bakar; sonuç veya getiri içermez.
 
 ## Sezonlar
 
@@ -220,8 +220,6 @@ Eksik maçlar (ilk 40, toplam 230):
 | 2324 | early | 380 | 1.0346 | 1.0238 | 1.0568 | 0 |
 | 2425 | closing | 380 | 1.0299 | 1.0063 | 1.0423 | 0 |
 | 2425 | early | 380 | 1.036 | 1.0272 | 1.0534 | 0 |
-| 2526 | closing | 210 | 1.0295 | 1.0223 | 1.0401 | 0 |
-| 2526 | early | 210 | 1.0354 | 1.0274 | 1.0464 | 0 |
 
 ## Pinnacle tutarlılık kontrolleri
 
@@ -235,7 +233,15 @@ Eksik maçlar (ilk 40, toplam 230):
 | 2223 | 380 | 0.0193 | 0 | 0.0048 | 0 |
 | 2324 | 380 | 0.0205 | 0 | 0.0048 | 0 |
 | 2425 | 380 | 0.02 | 0 | 0.0045 | 0 |
-| 2526 | 210 | 0.019 | 0 | 0.0071 | 0 |
+
+## Faz 11 penceresi: yalnızca doluluk (8.5, karar #81)
+
+2025/26–2026/27 kilitli. Burada yalnızca tam 1-X-2 oranı bulunan maçların oranı sayılır; oran değerleri, CLV, sonuçlar veya kural çıktıları hesaplanmaz.
+
+| league | season | matches | Avg closing | Avg early | B365 closing | B365 early | BFE closing | BFE early | PS closing | PS early |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| E0 | 2526 | 380 | 1.0 | 1.0 | 1.0 | 1.0 | 0.942 | 0.947 | 0.553 | 0.553 |
+| E0 | 2627 | 60 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 0.0 | 0.0 |
 
 ## Veri sürümleri
 

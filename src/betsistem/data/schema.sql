@@ -82,21 +82,23 @@ CREATE TABLE IF NOT EXISTS match_xg (
     PRIMARY KEY (match_id, source)
 );
 
--- İddaa oranları (karar #12). Elle tutulan kayıt; yalnızca eklenir, sonradan değiştirilmez.
--- Takım adları İddaa'daki yazımıyla saklanır; maçlarla eşleştirme analiz anında yapılır,
--- çünkü kayıt anında maç henüz matches tablosunda olmayabilir.
+-- İddaa oranları (karar #12, #79). Tek kaynak: templates/iddaa_kayit_sablonu.xlsx. Yalnızca eklenir.
+-- Takım adları football-data yazımıyla girilir ve referans fikstür dosyasındaki maçla eşleşmek zorundadır.
 CREATE TABLE IF NOT EXISTS iddaa_odds_log (
-    id               INTEGER PRIMARY KEY,
-    recorded_at      TEXT NOT NULL,           -- oranın görüldüğü an, ISO 8601 + saat dilimi
-    match_date       TEXT NOT NULL,           -- YYYY-MM-DD
-    kickoff_time     TEXT,                    -- HH:MM, Türkiye saati
-    home_team        TEXT NOT NULL,
-    away_team        TEXT NOT NULL,
-    price_home       REAL NOT NULL CHECK (price_home > 1.0),
-    price_draw       REAL NOT NULL CHECK (price_draw > 1.0),
-    price_away       REAL NOT NULL CHECK (price_away > 1.0),
-    note             TEXT,
-    data_version_id  INTEGER NOT NULL REFERENCES data_versions(id),
+    id                   INTEGER PRIMARY KEY,
+    recorded_at          TEXT NOT NULL,       -- oranın görüldüğü an, ISO 8601, Türkiye saati (+03:00)
+    league               TEXT NOT NULL,       -- football-data lig kodu: 'E0', 'T1'
+    match_date           TEXT NOT NULL,       -- YYYY-MM-DD
+    kickoff_time         TEXT,                -- HH:MM, Türkiye saati
+    home_team            TEXT NOT NULL,       -- football-data yazımı
+    away_team            TEXT NOT NULL,
+    price_home           REAL NOT NULL CHECK (price_home > 1.0),
+    price_draw           REAL NOT NULL CHECK (price_draw > 1.0),
+    price_away           REAL NOT NULL CHECK (price_away > 1.0),
+    mbs                  INTEGER NOT NULL CHECK (mbs >= 1),
+    fixtures_version_id  INTEGER NOT NULL REFERENCES data_versions(id),  -- referans fikstür dosyası
+    note                 TEXT,
+    data_version_id      INTEGER NOT NULL REFERENCES data_versions(id),  -- kaydın geldiği Excel dosyası
     UNIQUE (recorded_at, home_team, away_team)
 );
 
@@ -141,3 +143,44 @@ CREATE TRIGGER IF NOT EXISTS final_set_runs_result_once BEFORE UPDATE ON final_s
 WHEN OLD.result_json IS NOT NULL OR NEW.league IS NOT OLD.league OR NEW.opened_at IS NOT OLD.opened_at
      OR NEW.config IS NOT OLD.config OR NEW.threshold IS NOT OLD.threshold
 BEGIN SELECT RAISE(ABORT, 'final_set_runs yalnızca sonucu bir kez yazmak için güncellenebilir'); END;
+
+-- football-data haftalık fikstür dosyası indirmeleri (karar #80). Aynı içerik tek veri sürümüdür;
+-- her indirme ayrıca kaydedilir, böylece dosyanın ne zaman değiştiği sha karşılaştırmasıyla bulunur (8.4).
+CREATE TABLE IF NOT EXISTS fixture_downloads (
+    id               INTEGER PRIMARY KEY,
+    data_version_id  INTEGER NOT NULL REFERENCES data_versions(id),
+    file_name        TEXT NOT NULL UNIQUE,
+    downloaded_at    TEXT NOT NULL,           -- ISO 8601, Türkiye saati
+    imported_at      TEXT NOT NULL
+);
+
+-- Faz 11 penceresinin (2025/26–2026/27) fikir başına tek seferlik açılışı (karar #81).
+CREATE TABLE IF NOT EXISTS faz11_runs (
+    idea         TEXT PRIMARY KEY,
+    opened_at    TEXT NOT NULL,
+    config       TEXT NOT NULL,
+    git_commit   TEXT,
+    result_json  TEXT
+);
+
+CREATE TRIGGER IF NOT EXISTS faz11_runs_no_delete BEFORE DELETE ON faz11_runs
+BEGIN SELECT RAISE(ABORT, 'faz11_runs silinemez'); END;
+
+CREATE TRIGGER IF NOT EXISTS faz11_runs_result_once BEFORE UPDATE ON faz11_runs
+WHEN OLD.result_json IS NOT NULL OR NEW.idea IS NOT OLD.idea OR NEW.opened_at IS NOT OLD.opened_at
+     OR NEW.config IS NOT OLD.config
+BEGIN SELECT RAISE(ABORT, 'faz11_runs yalnızca sonucu bir kez yazmak için güncellenebilir'); END;
+
+-- Faz 10 testlerinin tek seferlik çalıştırma kaydı (karar #83).
+CREATE TABLE IF NOT EXISTS faz10_runs (
+    test         TEXT PRIMARY KEY,
+    run_at       TEXT NOT NULL,
+    git_commit   TEXT,
+    result       TEXT NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS faz10_runs_no_delete BEFORE DELETE ON faz10_runs
+BEGIN SELECT RAISE(ABORT, 'faz10_runs silinemez'); END;
+
+CREATE TRIGGER IF NOT EXISTS faz10_runs_no_update BEFORE UPDATE ON faz10_runs
+BEGIN SELECT RAISE(ABORT, 'faz10_runs değiştirilemez'); END;

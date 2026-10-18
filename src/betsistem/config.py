@@ -12,6 +12,8 @@ DB_PATH = DATA_DIR / "db" / "betsistem.sqlite"
 MODEL_SELECTION_SEASONS = ("1920", "2021", "2122", "2223")
 FINAL_TEST_SEASONS = ("2324", "2425")
 PROTOTYPE_SEASON = "2223"  # Karar #15
+# Karar #65, #81: Faz 11 bağımsız değerlendirme penceresi. Kod kilidiyle korunur; 8.5 için yalnızca doluluk.
+FAZ11_WINDOW_SEASONS = ("2526", "2627")
 
 # Karar #3: Premier League ile başlanır. Diğerleri lig taraması (karar #47) için yüklenir.
 LEAGUES = {
