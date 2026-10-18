@@ -30,8 +30,8 @@ MARKET_BENCHMARKS = [
 MODEL_NAME = "Poisson"
 
 
-def _market(conn, bookmaker: str, timing: str) -> pd.DataFrame:
-    prices = market_prices(conn, bookmaker)
+def _market(conn, bookmaker: str, timing: str, league: str = "E0") -> pd.DataFrame:
+    prices = market_prices(conn, bookmaker, league)
     prices = prices[prices.index.get_level_values("timing") == timing]
     fair = remove_margin(prices).reset_index()
     return fair.rename(columns={"H": "p_home", "D": "p_draw", "A": "p_away"})[["match_id", *COLS]]

@@ -29,10 +29,11 @@ XG_GRID = (0.25, 0.5, 0.75, 1.0)
 
 
 class Experiment:
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection, league: str = "E0"):
         assert_unlocked(EVAL_SEASONS)
         self.conn = conn
-        self.matches = load_matches(conn)
+        self.league = league
+        self.matches = load_matches(conn, league)
         self.results = self.matches.set_index("match_id")
         self._cache: dict[str, pd.DataFrame] = {}
 
@@ -69,8 +70,9 @@ def _diff_row(exp: Experiment, name: str, new: ModelConfig, old: ModelConfig) ->
     return row
 
 
-def run(conn: sqlite3.Connection) -> dict:
-    exp = Experiment(conn)
+def run(conn: sqlite3.Connection, league: str = "E0", use_xg: bool = True) -> dict:
+    """use_xg=False: xG verisi olmayan liglerde xG adımı atlanır (karar #48)."""
+    exp = Experiment(conn, league)
     base = ModelConfig()
 
     # Her adımda önceki model de adaydır: iyileştirmeyen değişiklik ayar sezonlarında elenir.
@@ -79,7 +81,10 @@ def run(conn: sqlite3.Connection) -> dict:
     best_time, time_table = exp.tune(
         [replace(after_dc, window_days=LONG_WINDOW, xi=xi) for xi in XI_GRID] + [after_dc]
     )
-    best_xg, xg_table = exp.tune([replace(best_time, xg_weight=a) for a in XG_GRID] + [best_time])
+    if use_xg:
+        best_xg, xg_table = exp.tune([replace(best_time, xg_weight=a) for a in XG_GRID] + [best_time])
+    else:
+        best_xg, xg_table = best_time, pd.DataFrame(columns=["config", "ayar log-loss", "iç kontrol log-loss"])
 
     cumulative = [
         ("Dixon-Coles", dc_candidate, base),
@@ -96,6 +101,9 @@ def run(conn: sqlite3.Connection) -> dict:
         "Zaman ağırlığı": best_time != after_dc,
         "xG": best_xg != best_time,
     }
+    if not use_xg:
+        cumulative, alone = cumulative[:2], alone[:2]
+        kept.pop("xG")
     return {
         "exp": exp,
         "base": base,
@@ -115,8 +123,8 @@ def _grid_md(table: pd.DataFrame, field: str) -> str:
 
 
 def _vs_market(exp: Experiment, configs: dict[str, ModelConfig]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    markets = {"Piyasa: PS erken": _market(exp.conn, "PS", "early"),
-               "Piyasa: PS kapanış": _market(exp.conn, "PS", "closing")}
+    markets = {"Piyasa: PS erken": _market(exp.conn, "PS", "early", exp.league),
+               "Piyasa: PS kapanış": _market(exp.conn, "PS", "closing", exp.league)}
     ids = exp.predictions(next(iter(configs.values()))).match_id
     for m in markets.values():
         ids = ids[ids.isin(m.match_id)]

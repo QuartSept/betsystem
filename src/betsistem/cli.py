@@ -11,7 +11,7 @@ from betsistem.data.iddaa import import_iddaa
 from betsistem.backtest import run as backtest_run
 from betsistem.backtest import sample_size
 from betsistem.data import quality
-from betsistem.model import evaluation, experiments, screening
+from betsistem.model import evaluation, experiments, league_report, screening
 from betsistem.data.raw import RawDataError, download_football_data, import_football_data, import_football_data_zip
 from betsistem.data.understat import fetch_understat, load_understat
 
@@ -74,6 +74,9 @@ def main(argv=None) -> int:
 
     p_ls = sub.add_parser("league-screen", help="Karar #47: lig taraması ve hareket testi referansı")
     p_ls.add_argument("--out", type=Path, default=PROJECT_ROOT / "reports" / "lig_taramasi.md")
+
+    p_lr = sub.add_parser("league-report", help="Karar #48: bir ligde Faz 2, Faz 3 ve hareket testi")
+    p_lr.add_argument("--league", nargs="+", required=True, choices=sorted(LEAGUES))
 
     args = parser.parse_args(argv)
     conn = connect(args.db)
@@ -139,6 +142,14 @@ def main(argv=None) -> int:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(screening.render_report(conn), encoding="utf-8")
             print(f"Rapor yazıldı: {args.out}")
+        elif args.command == "league-report":
+            for league in args.league:
+                text, res = league_report.render_league_report(conn, league)
+                out = PROJECT_ROOT / "reports" / f"lig_{league}.md"
+                out.write_text(text, encoding="utf-8")
+                mv = res["movement"]
+                print(f"{league}: model {res['final'].key()}, hareket eğimi {mv.slope:.4f}"
+                      f" (alt sınır {mv.lo_one_sided:.4f}) {'GEÇTİ' if mv.passes else 'geçemedi'} -> {out}")
         elif args.command == "import-iddaa":
             res = import_iddaa(conn, args.file)
             print(f"İddaa: {res.added} yeni kayıt, {res.already_present} zaten vardı")
