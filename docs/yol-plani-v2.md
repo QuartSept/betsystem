@@ -246,6 +246,7 @@ Aşama 2 kararları, `docs/yol-plani.md`'deki #1–#53'ün devamı; hepsi 18 Eki
 | 95 | İçe aktarmadaki "2 saatten uzak" uyarısı kaldırıldı; yerine #93 aralığı dışındaki kayıt için uyarı verilir. Ayrıca kaydın referans fikstür dosyası, kaydın yapıldığı toplama gününe ait olmalıdır; başka haftanın dosyası hata verir | Faz 8, 12 |
 | 96 | Cumartesi yüklenen fikstür dosyasında referans oranla (Avg 1-X-2) yer almayan maçlar (özellikle Cuma akşamı oynanan Süper Lig ve Premier League maçları) teste girmez. Bu maçların İddaa kaydı 8.1/8.2 için saklanır ve `has_reference = 0` olarak işaretlenir. Bu kural ilk kayıttan (23 Ekim 2026) önce yazıldı | Faz 8, 12 |
 | 97 | Fikstür yükleme saati ilk haftalarda `fixtures-log` ile izlenir. Saat haftadan haftaya belirgin değişirse veya hafta içi (Salı oranları) yükleme düzeni farklı çıkarsa #93–#96 yeniden konuşulur | Faz 8 |
+| 98 | Referans fikstür dosyası, oranların toplandığı güne (Cuma/Salı) ait **ilk yüklemedir** (#94 ve #96'daki "Cumartesi yüklenen dosya" ifadesinin yerine). Aynı toplama gününe ait sonraki yüklemeler yalnızca izleme için sürümlenir (#97) ve İddaa kayıtlarına referans olamaz. Gözlem: yükleme zamanı haftadan haftaya değişiyor: 17/10/26 Cumartesi 09:35, 23/10/26 Cuma 14:36 (İngiltere saati). 23 Ekim dosyası Cuma akşamı maçlarını da Avg oranlarıyla içeriyor; o hafta bu maçlar referanslıdır. İlk kayıt (23 Ekim, 19 maç) bu dosyaya bağlandı | Faz 8, 12 |
 
 ## İlk adımlar
 

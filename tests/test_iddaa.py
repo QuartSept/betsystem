@@ -188,3 +188,17 @@ def test_fixture_versions_and_change_log(conn, tmp_path):
     with pytest.raises(RawDataError, match="yeniden adlandır"):
         import_fixtures(conn, a, uploaded_at=UPLOADED, downloaded_at=datetime(2026, 10, 24, 20, 0, tzinfo=TR),
                         raw_dir=raw)
+
+
+def test_reference_must_be_first_upload_of_collection_day(env):
+    conn, tmp, raw = env
+    later = tmp / "fixtures_20261024_sonra.csv"
+    later.write_text(FIXTURES.replace("1.9,3.6,4.2", "1.95,3.6,4.1"), encoding="utf-8")
+    import_fixtures(conn, later, uploaded_at=datetime(2026, 10, 24, 16, 0, tzinfo=UK),
+                    downloaded_at=datetime(2026, 10, 24, 19, 0, tzinfo=TR), raw_dir=raw)
+    row = list(ROW)
+    row[10] = later.name
+    with pytest.raises(RawDataError, match="#98"):
+        import_iddaa(conn, _xlsx(tmp, row), raw_dir=raw)
+    log = fixtures_log(conn)
+    assert log["referans (#98)"].tolist() == [True, False]

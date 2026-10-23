@@ -23,7 +23,7 @@ from pathlib import Path
 import openpyxl
 
 from betsistem.config import LEAGUES, RAW_DIR, season_of
-from betsistem.data.fixtures import TR, collection_day, fixture_download, fixture_matches
+from betsistem.data.fixtures import TR, collection_day, first_upload, fixture_download, fixture_matches
 from betsistem.data.raw import RawDataError, store_raw
 
 SOURCE = "iddaa"
@@ -127,6 +127,12 @@ def _resolve_fixture(conn, name: str):
     info = fixture_download(conn, name)
     if info is None:
         raise ValueError(f"fikstür dosyası '{name}' yüklenmemiş; önce: betsistem import-fixtures {name} --uploaded-at ...")
+    first = first_upload(conn, info[1])
+    if first is not None and first[0] != name and first[1] < info[2]:
+        raise ValueError(
+            f"fikstür dosyası '{name}' toplama günü {info[1]} için ilk yükleme değil; referans "
+            f"'{first[0]}' (yükleme {first[1]:%d/%m/%y %H:%M} UK) olmalı (#98)"
+        )
     return info
 
 

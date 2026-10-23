@@ -146,7 +146,18 @@ def fixtures_log(conn: sqlite3.Connection) -> pd.DataFrame:
     up = pd.to_datetime(df.uploaded_at.str[:16])
     df["yükleme (UK)"] = up.dt.strftime("%a %H:%M")
     df["değişti"] = df.sha12.ne(df.sha12.shift())
+    first = df.groupby("collection_day").uploaded_at.transform("min")
+    df["referans (#98)"] = df.uploaded_at.eq(first)
     return df
+
+
+def first_upload(conn: sqlite3.Connection, day: date):
+    """#98: toplama gününe ait ilk yükleme (dosya adı, yükleme zamanı); referans yalnızca odur."""
+    row = conn.execute(
+        "SELECT file_name, uploaded_at FROM fixture_downloads WHERE collection_day = ?"
+        " ORDER BY uploaded_at, downloaded_at LIMIT 1", (day.isoformat(),)
+    ).fetchone()
+    return (row["file_name"], datetime.fromisoformat(row["uploaded_at"])) if row else None
 
 
 def fixture_download(conn: sqlite3.Connection, file_name: str):
